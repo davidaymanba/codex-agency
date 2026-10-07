@@ -1,0 +1,419 @@
+@import "tailwindcss";
+
+/* Dark mode is driven by next-themes adding `.dark` to <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ==========================================================================
+   1. Brand primitives — the ONLY place hex values may appear.
+   ========================================================================== */
+@theme {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-navy-950: #0e0f31;
+  --color-indigo-700: #4b4d83;
+  --color-indigo-200: #c5c6e3;
+  --color-indigo-50: #f2f3ff;
+  --color-blue-600: #0049b2;
+  --color-blue-400: #4e94ff;
+  --color-blue-300: #99c2ff;
+  --color-blue-100: #cce0ff;
+  --color-yellow-500: #ffc100;
+  --color-yellow-400: #ffcf48;
+  --color-yellow-200: #ffe197;
+  --color-yellow-50: #fff1d2;
+
+  /* Fonts — the face variables come from next/font (src/lib/fonts.ts). */
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display-face);
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Fluid type scale. Tracking + leading switch per script via --tracking-* / --leading-*. */
+  --text-micro: clamp(0.6875rem, 0.66rem + 0.12vw, 0.75rem);
+  --text-micro--letter-spacing: 0.08em;
+  --text-display-xl: clamp(3.25rem, 1rem + 9vw, 10rem);
+  --text-display-xl--line-height: var(--leading-display);
+  --text-display-xl--letter-spacing: var(--tracking-display);
+  --text-display: clamp(2.5rem, 1rem + 5.5vw, 6.5rem);
+  --text-display--line-height: var(--leading-display);
+  --text-display--letter-spacing: var(--tracking-display);
+  --text-headline: clamp(2rem, 1.2rem + 3vw, 4rem);
+  --text-headline--line-height: var(--leading-headline);
+  --text-headline--letter-spacing: var(--tracking-headline);
+  --text-title: clamp(1.375rem, 1.1rem + 1vw, 2rem);
+  --text-title--line-height: var(--leading-title);
+  --text-lead: clamp(1.0625rem, 0.98rem + 0.4vw, 1.375rem);
+  --text-lead--line-height: var(--leading-body);
+
+  --ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-power4-out: cubic-bezier(0.165, 0.84, 0.44, 1);
+
+  --radius-block: 0px;
+  --radius-brand: 0.75rem; /* mirrors the logo's rounded outer corners */
+
+  --breakpoint-3xl: 112rem;
+}
+
+/* ==========================================================================
+   2. Semantic tokens — components use THESE, never primitives directly
+      (except for intentional brand moments like the yellow CTA).
+   ========================================================================== */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-link: var(--link);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-glow: var(--glow);
+  --color-focus: var(--focus);
+}
+
+:root {
+  --bg: var(--color-indigo-50);
+  --surface: var(--color-white);
+  --surface-2: var(--color-blue-100);
+  --fg: var(--color-navy-950);
+  --fg-muted: var(--color-indigo-700);
+  --border: var(--color-indigo-200);
+  --border-strong: var(--color-indigo-700);
+  --primary: var(--color-blue-600);
+  --primary-fg: var(--color-white);
+  --link: var(--color-blue-600);
+  --accent: var(--color-yellow-500);
+  --accent-hover: var(--color-yellow-400);
+  --accent-fg: var(--color-navy-950);
+  --accent-soft: var(--color-yellow-50);
+  --glow: var(--color-blue-600);
+  --focus: var(--color-blue-600);
+  --grid-line: color-mix(in oklab, var(--color-indigo-200) 55%, transparent);
+  --glass: color-mix(in oklab, var(--color-indigo-50) 72%, transparent);
+
+  /* Script-dependent typography (English defaults). */
+  --font-body: var(--font-montreal), ui-sans-serif, system-ui, sans-serif;
+  --font-display-face: var(--font-morrison), var(--font-montreal), ui-sans-serif, sans-serif;
+  --tracking-display: -0.035em;
+  --tracking-headline: -0.025em;
+  --leading-display: 0.92;
+  --leading-headline: 1;
+  --leading-title: 1.15;
+  --leading-body: 1.55;
+
+  --header-h: 4.5rem;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: var(--color-navy-950);
+  --surface: color-mix(in oklab, var(--color-indigo-700) 16%, var(--color-navy-950));
+  --surface-2: color-mix(in oklab, var(--color-indigo-700) 30%, var(--color-navy-950));
+  --fg: var(--color-white);
+  --fg-muted: var(--color-indigo-200);
+  --border: color-mix(in oklab, var(--color-indigo-700) 55%, var(--color-navy-950));
+  --border-strong: var(--color-indigo-700);
+  /* blue-600 for fills/shapes; blue-400 for blue TEXT to keep AA contrast. */
+  --primary: var(--color-blue-600);
+  --link: var(--color-blue-400);
+  --glow: var(--color-blue-400);
+  --focus: var(--color-blue-400);
+  --grid-line: color-mix(in oklab, var(--color-indigo-700) 35%, transparent);
+  --glass: color-mix(in oklab, var(--color-navy-950) 68%, transparent);
+  color-scheme: dark;
+}
+
+/* Arabic: Rubik, normal tracking, more generous leading. */
+:root:lang(ar) {
+  --font-body: var(--font-rubik), var(--font-noto-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-display-face: var(--font-rubik), var(--font-noto-arabic), ui-sans-serif, sans-serif;
+  --tracking-display: 0em;
+  --tracking-headline: 0em;
+  --leading-display: 1.2;
+  --leading-headline: 1.3;
+  --leading-title: 1.4;
+  --leading-body: 1.8;
+}
+
+/* ==========================================================================
+   3. Base
+   ========================================================================== */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    line-height: var(--leading-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--color-blue-600);
+    color: var(--color-white);
+  }
+
+  /* On-brand focus: hard blue outline, square "block" corners. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 0;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+.lenis [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+/* ==========================================================================
+   4. Progressive-enhancement animation states.
+      `html.js` is set by an inline head script; elements are only hidden
+      when JS is present. A failsafe removes `js` if hydration never happens.
+   ========================================================================== */
+/* Preloader: only exists on first visit per session (html.preload set by head script). */
+#preloader {
+  display: none;
+}
+html.preload #preloader {
+  display: flex;
+}
+html.preload {
+  overflow: hidden;
+}
+
+.js [data-reveal] {
+  opacity: 0;
+}
+.js-blocks {
+  display: none;
+}
+.js .js-blocks {
+  display: grid;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   5. Utilities
+   ========================================================================== */
+@utility container-x {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 96rem;
+  padding-inline: clamp(1rem, 0.5rem + 2.5vw, 3rem);
+}
+
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-size, 64px) var(--grid-size, 64px);
+}
+
+@utility glass {
+  background-color: var(--glass);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+@utility label-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+@utility glow-blue {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-blue-600) 45%, transparent),
+    color-mix(in oklab, var(--color-blue-400) 12%, transparent) 60%,
+    transparent
+  );
+}
+
+/* Blinking caret */
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+@utility caret {
+  animation: caret-blink 1.05s steps(1) infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* View-transition theme switch: disable default crossfade, we drive clip-path in JS. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Custom cursor: hide the native one on desktop, but keep text/IBeam on fields. */
+html.has-custom-cursor,
+html.has-custom-cursor * {
+  cursor: none;
+}
+html.has-custom-cursor :is(input, textarea, select, [contenteditable="true"]) {
+  cursor: text;
+}
+
+/* ==========================================================================
+   Dashboard motion (snappy: 150–400ms). Radix exposes data-state for enter/exit.
+   ========================================================================== */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes dash-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dash-overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dash-pop-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+  }
+}
+@keyframes dash-pop-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+}
+@keyframes dash-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+@keyframes dash-sheet-in {
+  from {
+    transform: translateX(var(--sheet-from, 100%));
+  }
+}
+@keyframes dash-sheet-out {
+  to {
+    transform: translateX(var(--sheet-from, 100%));
+  }
+}
+@keyframes dash-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-blue-400) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+@utility animate-shimmer {
+  animation: shimmer 1.4s infinite;
+}
+@utility animate-pulse-ring {
+  animation: dash-pulse 1.2s ease-out 3;
+}
+[dir="rtl"] {
+  --sheet-from: -100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-state] {
+    animation-duration: 1ms !important;
+  }
+}
+
+/* Dashboard rich-text editor content */
+.prose-dash > * + * {
+  margin-top: 0.75em;
+}
+.prose-dash h2 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+.prose-dash h3 {
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+.prose-dash ul {
+  list-style: square;
+  padding-inline-start: 1.25rem;
+}
+.prose-dash ol {
+  list-style: decimal;
+  padding-inline-start: 1.5rem;
+}
+.prose-dash blockquote {
+  border-inline-start: 3px solid var(--primary);
+  padding-inline-start: 1rem;
+  color: var(--link);
+  font-weight: 500;
+}
+.prose-dash a {
+  color: var(--link);
+  text-decoration: underline;
+}
+.prose-dash p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--fg-muted);
+  float: inline-start;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Announcement strip adds its height to the header offset used by page heroes. */
+[data-announce="on"] {
+  --header-h: 6.75rem;
+}
+
+@keyframes wa-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}

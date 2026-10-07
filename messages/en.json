@@ -1,0 +1,884 @@
+{
+  "meta": {
+    "title": "CODEX — Software, Branding & Marketing Agency",
+    "description": "CODEX is a digital agency with in-house development, brand and marketing teams. We build e-commerce, e-learning, ERP and CRM platforms, AI agents and n8n automations.",
+    "siteName": "CODEX"
+  },
+  "nav": {
+    "home": "Home",
+    "services": "Services",
+    "solutions": "Solutions",
+    "ai": "AI & Automation",
+    "work": "Work",
+    "about": "About",
+    "blog": "Insights",
+    "contact": "Contact",
+    "startProject": "Start a project",
+    "menu": "Menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "skipToContent": "Skip to content",
+    "primary": "Primary navigation"
+  },
+  "theme": {
+    "toggle": "Toggle color theme",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "locale": {
+    "switchTo": "Switch to Arabic",
+    "short": "ع",
+    "label": "العربية"
+  },
+  "footer": {
+    "ctaLead": "Let's build something",
+    "ctaWord": "great",
+    "ctaTail": ".",
+    "ctaBody": "Tell us what you're building. We reply within one business day.",
+    "ctaButton": "Start a project",
+    "whatsapp": "Chat on WhatsApp",
+    "explore": "Explore",
+    "company": "Company",
+    "reach": "Reach us",
+    "follow": "Follow",
+    "markets": "Egypt · Saudi Arabia · UAE · Kuwait · Oman",
+    "rights": "All rights reserved.",
+    "backToTop": "Back to top",
+    "tagline": "Brands, code and growth — from one team."
+  },
+  "whatsapp": {
+    "label": "Chat with CODEX on WhatsApp"
+  },
+  "home": {
+    "heroTitle": "We build brands, code, and growth.",
+    "heroBody": "One agency, three in-house teams — development, brand and marketing — shipping products that look sharp and perform.",
+    "primaryCta": "Start a project",
+    "secondaryCta": "See our work",
+    "scroll": "Scroll",
+    "heroLabel": "Agency",
+    "disciplines": "Development · Branding · Marketing",
+    "marqueeLabel": "Stack & platforms",
+    "marqueeNote": "Tools we ship with every week",
+    "servicesLabel": "Services",
+    "servicesTitle": "Three teams. One roadmap.",
+    "servicesIntro": "Development, brand and marketing sit under one roof, so strategy, design and code move together instead of passing a baton.",
+    "servicesExplore": "Explore {service}",
+    "solutionsLabel": "Solutions",
+    "solutionsTitle": "Built for how you sell, teach and operate.",
+    "solutionsIntro": "Proven builds we deliver again and again — tailored to your market, your team and your numbers.",
+    "kindSolution": "solution",
+    "kindPlatform": "platform",
+    "customTitle": "Something else in mind?",
+    "customBody": "Custom platforms, internal tools and integrations — if it runs on code, we can build it.",
+    "customCta": "Let's talk",
+    "aiLabel": "AI & Automation",
+    "aiTitle": "Agents that work while your team sleeps.",
+    "aiIntro": "We design AI agents and n8n workflows that answer customers, qualify leads and move data between your tools — reliably, around the clock, in Arabic and English.",
+    "aiHint": "Hover a node — or pick a use case — to trace the flow.",
+    "aiCta": "Explore AI & Automation",
+    "aiStat": "workflows running in production",
+    "aiNodes": {
+      "trigger": {
+        "label": "WhatsApp message",
+        "desc": "A customer writes in — the trigger fires instantly."
+      },
+      "agent": {
+        "label": "AI Agent",
+        "desc": "Understands intent in Arabic or English and decides the next step."
+      },
+      "model": {
+        "label": "LLM",
+        "desc": "The language model powering reasoning and replies."
+      },
+      "memory": {
+        "label": "Memory",
+        "desc": "Remembers the conversation and customer history."
+      },
+      "tools": {
+        "label": "Tools",
+        "desc": "Looks up orders, stock, prices and your knowledge base."
+      },
+      "router": {
+        "label": "Router",
+        "desc": "Routes the outcome to the right system."
+      },
+      "crm": {
+        "label": "CRM",
+        "desc": "Creates or updates the lead with a qualification score."
+      },
+      "reply": {
+        "label": "WhatsApp reply",
+        "desc": "Answers the customer in seconds, in their language."
+      },
+      "email": {
+        "label": "Email",
+        "desc": "Notifies your team or sends the customer a summary."
+      }
+    },
+    "aiUseCases": {
+      "support": {
+        "title": "Customer support agent",
+        "body": "Answers FAQs, tracks orders and hands off to a human when needed."
+      },
+      "leads": {
+        "title": "Lead qualification",
+        "body": "Asks the right questions, scores the lead and books the call in your CRM."
+      },
+      "orders": {
+        "title": "Order automation",
+        "body": "Syncs orders, invoices and shipping between your store, ERP and WhatsApp."
+      },
+      "reports": {
+        "title": "Internal reporting",
+        "body": "Pulls numbers from every tool and emails a clean daily summary."
+      }
+    },
+    "statsLabel": "By the numbers",
+    "statsTitle": "Eight years of shipping, in four numbers.",
+    "workLabel": "Selected work",
+    "workTitle": "Work that moved the numbers.",
+    "workIntro": "A few recent projects across development, brand, marketing and AI.",
+    "workAll": "All",
+    "workViewAll": "View all work",
+    "workEmpty": "No projects in this category yet.",
+    "teamsLabel": "Teams",
+    "teamsTitle": "Three in-house teams. Zero hand-off gaps.",
+    "teamsIntro": "Every project gets a lead from each team who stays with it from kickoff to growth.",
+    "teamsDelivers": "What they deliver",
+    "processLabel": "Process",
+    "processTitle": "From first call to compounding growth.",
+    "processSteps": {
+      "discover": {
+        "title": "Discover",
+        "body": "Workshops, audits and data to understand the business, the users and the goal."
+      },
+      "strategy": {
+        "title": "Strategy",
+        "body": "A clear plan: positioning, scope, KPIs, timeline and budget."
+      },
+      "design": {
+        "title": "Design",
+        "body": "Identity, UX and UI designed as a system and tested with real users."
+      },
+      "build": {
+        "title": "Build",
+        "body": "Clean, documented code shipped in weekly increments you can see."
+      },
+      "launch": {
+        "title": "Launch",
+        "body": "QA, performance, analytics and a launch plan with no surprises."
+      },
+      "grow": {
+        "title": "Grow",
+        "body": "Campaigns, automation and iteration driven by the numbers."
+      }
+    },
+    "testimonialsLabel": "Testimonials",
+    "testimonialsTitle": "What our clients say.",
+    "testimonialsPrev": "Previous testimonial",
+    "testimonialsNext": "Next testimonial",
+    "testimonialsDrag": "Drag to explore"
+  },
+  "cursor": {
+    "view": "View",
+    "drag": "Drag",
+    "open": "Open"
+  },
+  "notFound": {
+    "title": "This page slipped out of the brackets.",
+    "body": "The link may be broken or the page may have moved.",
+    "back": "Back to home",
+    "rebuild": "Rebuild it",
+    "contact": "Contact us"
+  },
+  "preloader": {
+    "loading": "Loading CODEX"
+  },
+  "common": {
+    "readMore": "Read more",
+    "minRead": "{n} min read",
+    "relatedWork": "Related work",
+    "nextProject": "Next project",
+    "startProject": "Start a project",
+    "faqTitle": "Questions we get asked",
+    "otherServices": "Other services",
+    "whatWeDo": "What we do",
+    "theTeam": "The team behind it",
+    "results": "Results",
+    "challenge": "The challenge",
+    "approach": "What we did",
+    "servicesUsed": "Services",
+    "client": "Client",
+    "year": "Year",
+    "visitSite": "Visit live site",
+    "allWork": "All work",
+    "allPosts": "All articles",
+    "viewProject": "View project",
+    "backToBlog": "Back to articles",
+    "keepReading": "Keep reading",
+    "explore": "Explore"
+  },
+  "pages": {
+    "services": {
+      "label": "Services",
+      "title": "Three disciplines. One team.",
+      "intro": "Development, branding and marketing under one roof — so strategy, design and code move as one."
+    },
+    "solutions": {
+      "label": "Solutions",
+      "title": "Proven builds for how you sell, teach and operate.",
+      "intro": "Solutions we deliver again and again, tailored to your market, your team and your numbers.",
+      "solutionsTitle": "Business solutions",
+      "platformsTitle": "Platforms we master"
+    },
+    "ai": {
+      "label": "AI & Automation",
+      "title": "AI agents and automations that actually ship.",
+      "intro": "We design, build and run n8n workflows and AI agents connected to the tools you already use — WhatsApp, your store, your CRM and your ERP.",
+      "whatTitle": "What we automate",
+      "what": {
+        "support": "Customer support on WhatsApp and web chat",
+        "leads": "Lead capture, qualification and routing",
+        "orders": "Order, invoice and shipping sync",
+        "content": "Content and report generation",
+        "data": "Data entry between tools",
+        "alerts": "Alerts and approvals for your team"
+      },
+      "whyTitle": "Why teams trust us with automation",
+      "why": {
+        "real": {
+          "title": "Real projects, not demos",
+          "body": "Dozens of workflows in production for stores, real-estate, education and operations teams."
+        },
+        "bilingual": {
+          "title": "Arabic and English",
+          "body": "Agents that understand Gulf and Egyptian dialects as well as English."
+        },
+        "owned": {
+          "title": "You own it",
+          "body": "Self-hosted n8n option, documented workflows and full handover."
+        }
+      }
+    },
+    "work": {
+      "label": "Work",
+      "title": "Projects that moved the numbers.",
+      "intro": "Selected work across development, branding, marketing and AI automation."
+    },
+    "blog": {
+      "label": "Insights",
+      "title": "Notes from the build.",
+      "intro": "Practical ideas on e-commerce, branding, marketing and AI automation from the CODEX team.",
+      "empty": "No articles yet."
+    },
+    "about": {
+      "label": "About",
+      "title": "A digital agency built like a product team.",
+      "intro": "CODEX brings development, brand and marketing teams together so every project ships faster and grows longer.",
+      "storyTitle": "Our story",
+      "story1": "CODEX started as a small team of developers who kept getting asked for the same thing: a partner who could build the product, shape the brand and bring the customers — without three agencies blaming each other.",
+      "story2": "Today we're three in-house teams working from one roadmap for clients across Egypt, Saudi Arabia, the UAE, Kuwait and Oman.",
+      "valuesTitle": "What we believe",
+      "values": {
+        "clarity": {
+          "title": "Clarity over noise",
+          "body": "Simple plans, honest timelines and reports you can read in a minute."
+        },
+        "craft": {
+          "title": "Craft in the details",
+          "body": "Pixel, code and copy — everything is reviewed twice."
+        },
+        "ownership": {
+          "title": "Own the outcome",
+          "body": "We measure success by your numbers, not our deliverables."
+        },
+        "speed": {
+          "title": "Ship, then sharpen",
+          "body": "Weekly releases and real feedback beat long silent builds."
+        }
+      },
+      "marketsTitle": "Where we work",
+      "peopleTitle": "The people"
+    },
+    "contact": {
+      "label": "Contact",
+      "title": "Tell us what you're building.",
+      "intro": "Share a few details and we'll reply within one business day — or message us on WhatsApp for a faster answer.",
+      "name": "Full name",
+      "email": "Email",
+      "phone": "Phone / WhatsApp",
+      "company": "Company (optional)",
+      "service": "What do you need?",
+      "budget": "Estimated budget",
+      "message": "Project details",
+      "messagePlaceholder": "Goals, timeline, links — anything that helps us understand the project.",
+      "choose": "Choose one",
+      "services": {
+        "development": "Development",
+        "branding": "Branding",
+        "marketing": "Marketing",
+        "ai": "AI & Automation",
+        "ecommerce": "E-commerce store",
+        "other": "Something else"
+      },
+      "budgets": {
+        "lt5k": "Under $5k",
+        "5to15k": "$5k – $15k",
+        "15to40k": "$15k – $40k",
+        "gt40k": "$40k+",
+        "unsure": "Not sure yet"
+      },
+      "submit": "Send message",
+      "sending": "Sending…",
+      "successTitle": "Message received.",
+      "successBody": "Thank you — someone from the team will reply within one business day.",
+      "sendAnother": "Send another message",
+      "error": "Something went wrong. Please try again or reach us on WhatsApp.",
+      "errors": {
+        "required": "This field is required.",
+        "email": "Enter a valid email address.",
+        "phone": "Enter a valid phone number.",
+        "short": "Please add a bit more detail.",
+        "long": "That's a bit long — please shorten it."
+      },
+      "reachTitle": "Other ways to reach us",
+      "emailLabel": "Email",
+      "whatsappLabel": "WhatsApp",
+      "phoneLabel": "Phone",
+      "hoursLabel": "Working hours",
+      "hours": "Sun – Thu · 9:00 – 18:00 (GMT+3)",
+      "privacy": "We only use your details to reply to this enquiry.",
+      "rateLimited": "You've sent several messages already — please wait a few minutes or reach us on WhatsApp."
+    }
+  },
+  "dash": {
+    "brand": "Dashboard",
+    "nav": {
+      "groups": {
+        "main": "Workspace",
+        "content": "Content",
+        "admin": "Admin"
+      },
+      "overview": "Overview",
+      "leads": "Leads",
+      "analytics": "Analytics",
+      "projects": "Projects",
+      "services": "Services & solutions",
+      "posts": "Posts",
+      "testimonials": "Testimonials",
+      "team": "Team",
+      "stats": "Stats",
+      "logos": "Tech logos",
+      "media": "Media library",
+      "users": "Users & roles",
+      "settings": "Settings",
+      "activity": "Activity log",
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar",
+      "openMenu": "Open navigation",
+      "viewSite": "View website"
+    },
+    "topbar": {
+      "search": "Search or jump to…",
+      "notifications": "Notifications",
+      "noNotifications": "You're all caught up.",
+      "markRead": "Mark all as read",
+      "profile": "Profile",
+      "signOut": "Sign out",
+      "newLead": "New lead from {name}"
+    },
+    "command": {
+      "placeholder": "Type a command or search…",
+      "empty": "No results.",
+      "pages": "Go to",
+      "actions": "Actions",
+      "leads": "Leads",
+      "newProject": "New project",
+      "newPost": "New post",
+      "toggleTheme": "Toggle theme",
+      "switchLang": "Switch language",
+      "simulateLead": "Simulate a new lead (dev)"
+    },
+    "auth": {
+      "loginTitle": "Welcome back",
+      "loginBody": "Sign in to manage the CODEX website and leads.",
+      "email": "Email",
+      "password": "Password",
+      "signIn": "Sign in",
+      "signingIn": "Signing in…",
+      "magicTab": "Magic link",
+      "passwordTab": "Password",
+      "sendMagic": "Send magic link",
+      "magicSent": "Check your inbox — we sent you a sign-in link.",
+      "forgot": "Forgot password?",
+      "forgotTitle": "Reset your password",
+      "forgotBody": "Enter your email and we'll send a reset link.",
+      "sendReset": "Send reset link",
+      "resetSent": "If that email exists, a reset link is on its way.",
+      "backToLogin": "Back to sign in",
+      "resetTitle": "Choose a new password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "savePassword": "Save password",
+      "passwordSaved": "Password updated. You can sign in now.",
+      "inviteTitle": "Join the CODEX dashboard",
+      "inviteBody": "You've been invited. Set your name and password to get started.",
+      "fullName": "Full name",
+      "acceptInvite": "Create account",
+      "inviteDone": "Account ready. Sign in to continue.",
+      "devHint": "Development login — admin@codex.agency / editor@codex.agency / viewer@codex.agency · password: codex-dev",
+      "errors": {
+        "email": "Enter a valid email address.",
+        "password": "Enter your password.",
+        "passwordLength": "Use at least 8 characters.",
+        "mismatch": "Passwords don't match.",
+        "required": "This field is required.",
+        "credentials": "Email or password is incorrect.",
+        "unavailable": "Sign-in isn't available yet on this environment.",
+        "invalid": "Please check the form and try again.",
+        "locked": "Too many attempts. Try again in a few minutes."
+      }
+    },
+    "common": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "close": "Close",
+      "loading": "Loading…",
+      "retry": "Try again",
+      "error": "Something went wrong.",
+      "saved": "Saved",
+      "undo": "Undo",
+      "search": "Search",
+      "filters": "Filters",
+      "clear": "Clear",
+      "all": "All",
+      "columns": "Columns",
+      "export": "Export CSV",
+      "selected": "{n} selected",
+      "page": "Page {page} of {pages}",
+      "prev": "Previous",
+      "next": "Next",
+      "results": "{n} results",
+      "comingSoon": "This module arrives in the next phase.",
+      "comingSoonTitle": "Under construction",
+      "backToOverview": "Back to overview",
+      "forbidden": "You don't have permission to do that.",
+      "unassigned": "Unassigned",
+      "you": "you",
+      "justNow": "just now"
+    },
+    "ranges": {
+      "7d": "7 days",
+      "30d": "30 days",
+      "90d": "90 days"
+    },
+    "overview": {
+      "title": "Overview",
+      "greeting": "Hello, {name}",
+      "subtitle": "Here's what's happening across the website and pipeline.",
+      "kpi": {
+        "newLeads": "New leads",
+        "conversion": "Conversion rate",
+        "pipeline": "Pipeline value",
+        "pageViews": "Page views",
+        "published": "Published projects"
+      },
+      "vsPrev": "vs previous period",
+      "leadsOverTime": "Leads over time",
+      "leadsByService": "Leads by service",
+      "trafficByPage": "Traffic by page",
+      "trafficByDevice": "Traffic by device",
+      "recentLeads": "Recent leads",
+      "recentActivity": "Recent activity",
+      "viewAll": "View all",
+      "devices": {
+        "desktop": "Desktop",
+        "mobile": "Mobile",
+        "tablet": "Tablet"
+      },
+      "leads": "Leads",
+      "views": "Views"
+    },
+    "leads": {
+      "title": "Leads",
+      "subtitle": "Every enquiry from the website, from first message to won deal.",
+      "board": "Pipeline",
+      "table": "Table",
+      "searchPlaceholder": "Search name, email, company…",
+      "status": "Status",
+      "service": "Service",
+      "budget": "Budget",
+      "value": "Est. value",
+      "assignee": "Assignee",
+      "created": "Created",
+      "country": "Country",
+      "contact": "Contact",
+      "source": "Source",
+      "message": "Message",
+      "notes": "Timeline",
+      "addNote": "Add a note…",
+      "postNote": "Post note",
+      "quick": "Quick actions",
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "call": "Call",
+      "bulkStatus": "Move to…",
+      "bulkDelete": "Delete selected",
+      "deleteTitle": "Delete {n} lead(s)?",
+      "deleteBody": "This permanently removes the leads and their notes. This can't be undone.",
+      "deleted": "{n} lead(s) deleted",
+      "moved": "Moved to {status}",
+      "moveFailed": "Couldn't move the lead — changes were reverted.",
+      "emptyTitle": "No leads yet",
+      "emptyBody": "New enquiries from the contact form will land here.",
+      "emptyFiltered": "No leads match these filters.",
+      "openSite": "Open contact page",
+      "details": "Lead details",
+      "dropHere": "Drop here",
+      "readOnly": "Read-only access",
+      "statuses": {
+        "new": "New",
+        "contacted": "Contacted",
+        "qualified": "Qualified",
+        "proposal": "Proposal",
+        "won": "Won",
+        "lost": "Lost"
+      },
+      "services": {
+        "development": "Development",
+        "branding": "Branding",
+        "marketing": "Marketing",
+        "ai": "AI & Automation",
+        "ecommerce": "E-commerce",
+        "other": "Other"
+      },
+      "budgets": {
+        "lt5k": "< $5k",
+        "5to15k": "$5k–15k",
+        "15to40k": "$15k–40k",
+        "gt40k": "$40k+",
+        "unsure": "Not sure"
+      }
+    },
+    "activity": {
+      "create": "New lead: {name}",
+      "status": "{actor} moved {name} to {status}",
+      "assign": "{name} assigned to {who}",
+      "note": "Note added on {name}",
+      "delete": "{count} lead(s) deleted",
+      "login": "{name} signed in",
+      "update": "{name} updated",
+      "content_create": "{actor} created “{name}” in {section}",
+      "content_update": "{actor} updated “{name}” in {section}",
+      "content_delete": "{actor} deleted “{name}” from {section}",
+      "publish": "{actor} published “{name}”",
+      "unpublish": "{actor} unpublished “{name}”",
+      "reorder": "{actor} reordered {section}",
+      "upload": "{actor} uploaded {name}",
+      "invite": "{actor} invited {name} as {role}",
+      "role": "{actor} changed {name}'s role to {role}",
+      "settings": "{actor} updated the site settings"
+    },
+    "form": {
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Changes saved",
+      "create": "Create",
+      "new": "New",
+      "edit": "Edit",
+      "unsaved": "Unsaved changes",
+      "unsavedTitle": "Discard unsaved changes?",
+      "unsavedBody": "You have changes that haven't been saved. They'll be lost if you leave.",
+      "discard": "Discard",
+      "keepEditing": "Keep editing",
+      "shortcut": "Ctrl/⌘ + S to save",
+      "add": "Add",
+      "remove": "Remove",
+      "english": "English",
+      "arabic": "Arabic",
+      "published": "Published",
+      "hidden": "Hidden",
+      "preview": "Preview",
+      "delete": "Delete",
+      "deleteTitle": "Delete “{name}”?",
+      "deleteBody": "This can't be undone.",
+      "deleted": "Deleted",
+      "reordered": "Order saved",
+      "dragHandle": "Drag to reorder",
+      "fixErrors": "Please fix the highlighted fields.",
+      "optional": "optional",
+      "errors": {
+        "required": "Required.",
+        "short": "Too short.",
+        "long": "Too long.",
+        "slug": "Use lowercase letters, numbers and dashes.",
+        "url": "Enter a valid https:// or /path URL.",
+        "number": "Enter a valid number.",
+        "icon": "Use a simple-icons name like siShopify.",
+        "duplicate": "Already in use.",
+        "date": "Pick a valid date.",
+        "invalid": "Invalid value."
+      }
+    },
+    "sections": {
+      "testimonials": "Testimonials",
+      "team": "Team",
+      "stats": "Stats",
+      "techLogos": "Tech logos",
+      "services": "Services",
+      "solutions": "Solutions",
+      "projects": "Projects",
+      "posts": "Posts",
+      "media": "Media"
+    },
+    "content": {
+      "testimonialsSub": "Client quotes shown on the home page.",
+      "teamSub": "People shown on the About page.",
+      "statsSub": "The counters on the home and About pages.",
+      "techLogosSub": "Logos in the home page marquee.",
+      "servicesSub": "Services and solutions shown across the website.",
+      "empty": "Nothing here yet",
+      "emptyBody": "Create the first item to get started.",
+      "readOnly": "You have view-only access."
+    },
+    "fields": {
+      "quote": "Quote",
+      "author_name": "Author name",
+      "author_role": "Role",
+      "company": "Company",
+      "country": "Country",
+      "avatar_url": "Photo",
+      "name": "Name",
+      "role": "Role",
+      "team": "Team",
+      "photo_url": "Photo",
+      "key": "Key",
+      "value": "Value",
+      "suffix": "Suffix",
+      "label": "Label",
+      "icon": "Icon",
+      "marquee_row": "Marquee row",
+      "slug": "Slug",
+      "title": "Title",
+      "tagline": "Tagline",
+      "description": "Description",
+      "sub_services": "Sub-services",
+      "illustration": "Illustration",
+      "team_name": "Team name",
+      "team_description": "Team description",
+      "team_deliverables": "Team deliverables",
+      "faqs": "FAQs",
+      "question": "Question",
+      "answer": "Answer",
+      "kind": "Type",
+      "features": "Features",
+      "published": "Visible on website",
+      "summary": "Summary",
+      "challenge": "Challenge",
+      "approach": "Approach",
+      "content": "Case study body",
+      "category": "Category",
+      "tags": "Tags",
+      "client_name": "Client",
+      "year": "Year",
+      "cover_image": "Cover image",
+      "cover_style": "Placeholder cover style",
+      "gallery": "Gallery",
+      "live_url": "Live URL",
+      "results": "Results",
+      "services": "Services used",
+      "featured": "Featured on home",
+      "status": "Status",
+      "seo_title": "SEO title",
+      "seo_description": "SEO description",
+      "excerpt": "Excerpt",
+      "author": "Author",
+      "published_at": "Publish date",
+      "tagsHint": "Press Enter to add",
+      "iconHint": "lucide name (e.g. shopping-bag) or si:siShopify"
+    },
+    "projects": {
+      "title": "Projects",
+      "subtitle": "Case studies shown on the Work pages.",
+      "grid": "Grid",
+      "table": "Table",
+      "newProject": "New project",
+      "editProject": "Edit project",
+      "draft": "Draft",
+      "published": "Published",
+      "featured": "Featured",
+      "basics": "Basics",
+      "contentTab": "Content",
+      "mediaTab": "Media",
+      "seoTab": "SEO",
+      "resultsHint": "Up to 6 headline numbers, e.g. +64% conversion.",
+      "dragToReorder": "Drag cards to reorder the Work page.",
+      "previewHint": "Opens the page as visitors will see it, including drafts."
+    },
+    "posts": {
+      "title": "Posts",
+      "subtitle": "Articles on the Insights pages.",
+      "newPost": "New post",
+      "editPost": "Edit post",
+      "draft": "Draft",
+      "scheduled": "Scheduled",
+      "published": "Published",
+      "scheduleHint": "A future date schedules the post; it goes live automatically.",
+      "minutes": "{n} min"
+    },
+    "media": {
+      "title": "Media library",
+      "subtitle": "Images used across the website.",
+      "drop": "Drop images here or click to upload",
+      "dropHint": "JPG, PNG, WebP, AVIF or GIF · up to 8 MB each",
+      "uploading": "Uploading…",
+      "uploaded": "Uploaded {name}",
+      "failed": "Couldn't upload {name}",
+      "tooLarge": "{name} is larger than 8 MB",
+      "badType": "{name} isn't a supported image",
+      "search": "Search files…",
+      "copy": "Copy URL",
+      "copied": "URL copied",
+      "usedIn": "Used in",
+      "notUsed": "Not used anywhere yet.",
+      "deleteUsed": "This image is used in {n} place(s). Deleting it will break those images.",
+      "alt": "Alt text",
+      "choose": "Choose image",
+      "chooseMany": "Add images",
+      "pick": "Use selected",
+      "empty": "No images yet",
+      "emptyBody": "Upload images to use them in projects, posts and the team page.",
+      "clear": "Remove image",
+      "upload": "Upload"
+    },
+    "editor": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "h2": "Heading",
+      "h3": "Subheading",
+      "bullet": "Bullet list",
+      "ordered": "Numbered list",
+      "quote": "Quote",
+      "link": "Link",
+      "unlink": "Remove link",
+      "undo": "Undo",
+      "redo": "Redo",
+      "linkPrompt": "Link URL (https://…)",
+      "placeholder": "Write here…"
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Contact details, links and global switches for the website.",
+      "contact": "Contact details",
+      "email": "Email",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp number",
+      "whatsappHint": "Digits only, with country code (e.g. 9665XXXXXXXX).",
+      "address": "Locations line",
+      "socials": "Social links",
+      "seo": "Default SEO",
+      "seoHint": "Used when a page doesn't define its own title or description.",
+      "announcement": "Announcement bar",
+      "announcementHint": "A slim strip above the header on every page.",
+      "announcementOn": "Show the announcement bar",
+      "announcementText": "Message",
+      "announcementLink": "Link (optional)",
+      "maintenance": "Maintenance mode",
+      "maintenanceHint": "Visitors will see a “we'll be right back” page. Signed-in team members can still browse the site.",
+      "maintenanceOn": "Turn on maintenance mode",
+      "adminOnly": "Only admins can change this."
+    },
+    "users": {
+      "title": "Users & roles",
+      "subtitle": "Who can access the dashboard and what they can do.",
+      "invite": "Invite user",
+      "inviteTitle": "Invite a team member",
+      "inviteBody": "They'll receive a link to set their name and password.",
+      "inviteSent": "Invitation created",
+      "inviteLink": "Invitation link",
+      "inviteLinkHint": "Email delivery arrives with the backend phase — share this link manually for now.",
+      "copyLink": "Copy link",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "lastSeen": "Last sign-in",
+      "never": "Never",
+      "active": "Active",
+      "invited": "Invited",
+      "inactive": "Deactivated",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "revoke": "Revoke invitation",
+      "you": "You",
+      "roleChanged": "Role updated",
+      "selfError": "You can't change your own access.",
+      "lastAdmin": "There must be at least one active admin.",
+      "exists": "A user with this email already exists.",
+      "roles": {
+        "admin": "Admin",
+        "editor": "Editor",
+        "viewer": "Viewer"
+      },
+      "roleHelp": {
+        "admin": "Everything, including users and maintenance mode.",
+        "editor": "Content, leads and settings.",
+        "viewer": "Read-only access."
+      },
+      "deactivateTitle": "Deactivate {name}?",
+      "deactivateBody": "They'll be signed out and can't sign in until reactivated."
+    },
+    "activityLog": {
+      "title": "Activity log",
+      "subtitle": "Every change made in the dashboard.",
+      "all": "All",
+      "entity": "Area",
+      "actor": "Person",
+      "system": "Website",
+      "from": "From",
+      "to": "To",
+      "empty": "No activity matches these filters.",
+      "entities": {
+        "lead": "Leads",
+        "project": "Projects",
+        "post": "Posts",
+        "content": "Content",
+        "media": "Media",
+        "settings": "Settings",
+        "user": "Users"
+      }
+    },
+    "analytics": {
+      "title": "Analytics",
+      "subtitle": "First-party, cookie-less traffic for the public website.",
+      "visitors": "Unique visitors",
+      "views": "Page views",
+      "contactViews": "Contact page views",
+      "leads": "Leads",
+      "trafficOverTime": "Page views over time",
+      "topPages": "Top pages",
+      "referrers": "Referrers",
+      "locales": "Languages",
+      "devices": "Devices",
+      "funnel": "Conversion funnel",
+      "funnelHint": "How many visitors reach the contact page, and how many send a lead.",
+      "step": {
+        "views": "Page views",
+        "contact": "Contact page views",
+        "leads": "Leads"
+      },
+      "ofPrev": "{pct}% of previous step",
+      "privacy": "No cookies, no IP storage. Do-Not-Track is respected.",
+      "table": "Data table",
+      "day": "Day"
+    }
+  },
+  "maintenance": {
+    "title": "We'll be right back.",
+    "body": "The CODEX website is getting an upgrade. Please check back shortly — or email us in the meantime.",
+    "teamBanner": "Maintenance mode is on — only signed-in team members can see the website."
+  }
+}

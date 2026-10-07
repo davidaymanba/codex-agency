@@ -9,8 +9,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { requireUser } from "@/lib/auth/session";
 import { activityText } from "@/lib/dashboard/activity-text";
-import { db } from "@/lib/dashboard/mock-db";
-import { listActivity } from "@/lib/dashboard/repo";
+import { listActivity, listAllProfiles } from "@/lib/dashboard/repo";
 import type { Activity } from "@/lib/dashboard/types";
 
 export const metadata = { title: "Activity log" };
@@ -57,7 +56,7 @@ export default async function ActivityPage({
     pageSize,
   });
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  const users = db.profiles.map((p) => ({ id: p.id, name: p.full_name }));
+  const users = (await listAllProfiles()).map((p) => ({ id: p.id, name: p.full_name }));
   const name = (id: string | null) =>
     id ? (users.find((u) => u.id === id)?.name ?? "—") : t("system");
 

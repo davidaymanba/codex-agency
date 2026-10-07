@@ -1,101 +1,82 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { encodeSession, SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth/session";
-import { clearRate, clientIp, rateLimit } from "@/lib/rate-limit";
-import { db } from "@/lib/dashboard/mock-db";
-import { logActivity } from "@/lib/dashboard/repo";
+import { clearRate, clientIp, rateLimit, requestOrigin } from "@/lib/rate-limit";
 import { emailOnlySchema, inviteSchema, loginSchema, resetSchema } from "@/lib/schemas/auth";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export type AuthResult =
   | { ok: true }
-  | {
-      ok: false;
-      error: "invalid" | "credentials" | "unavailable" | "locked";
-      retryMinutes?: number;
-    };
+  | { ok: false; error: "invalid" | "credentials" | "unavailable" | "locked"; retryMinutes?: number };
 
-/**
- * TEMPORARY auth actions. In development, the seeded accounts sign in with the password in
- * DEV_LOGIN_PASSWORD (default "codex-dev"). In production these are disabled until
- * Supabase Auth is wired in the backend phase.
- */
-const DEV = process.env.NODE_ENV !== "production";
-const DEV_PASSWORD = process.env.DEV_LOGIN_PASSWORD ?? "codex-dev";
+/** Supabase Auth actions. Sign-up is disabled (invite-only); every path is rate limited. */
 
 const safeNext = (locale: string, next: unknown) =>
-  typeof next === "string" && next.startsWith(`/${locale}/dashboard`) && !next.startsWith("//")
-    ? next
-    : `/${locale}/dashboard`;
+  typeof next === "string" && next.startsWith(`/${locale}/dashboard`) && !next.startsWith("//") ? next : `/${locale}/dashboard`;
+const L = (locale: string) => (locale === "ar" ? "ar" : "en");
 
 export async function signIn(locale: string, input: unknown, next?: string): Promise<AuthResult> {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid" };
-  if (!DEV) return { ok: false, error: "unavailable" };
-  // Brute-force protection: per IP and per account.
   const ip = await clientIp();
   const email = parsed.data.email.toLowerCase();
-  const byIp = rateLimit(`login:ip:${ip}`, 20, 15 * 60_000);
-  const byEmail = rateLimit(`login:email:${email}`, 5, 15 * 60_000);
-  if (!byIp.ok || !byEmail.ok)
-    return {
-      ok: false,
-      error: "locked",
-      retryMinutes: Math.ceil(Math.max(byIp.retryAfter, byEmail.retryAfter) / 60),
-    };
-  const user = db.profiles.find((p) => p.email === email && p.active);
-  if (!user || parsed.data.password !== DEV_PASSWORD) return { ok: false, error: "credentials" };
+  // Brute-force protection: per IP and per account.
+  const [byIp, byEmail] = await Promise.all([rateLimit(`login:ip:${ip}`, 20, 15 * 60_000), rateLimit(`login:email:${email}`, 5, 15 * 60_000)]);
+  if (!byIp.ok || !byEmail.ok) return { ok: false, error: "locked", retryMinutes: 15 };
 
-  (await cookies()).set(SESSION_COOKIE, encodeSession(user.id), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: !DEV,
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
-  clearRate(`login:email:${email}`);
-  user.last_sign_in_at = new Date().toISOString();
-  await logActivity({
-    actor_id: user.id,
-    action: "login",
-    entity: "user",
-    entity_id: user.id,
-    summary: `${user.full_name} signed in`,
-    meta: { name: user.full_name },
-  });
-  redirect(safeNext(locale, next));
+  const sb = await supabaseServer();
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: parsed.data.password });
+  if (error || !data.user) return { ok: false, error: "credentials" };
+  const { data: profile } = await sb.from("profiles").select("active").eq("id", data.user.id).maybeSingle();
+  if (!profile?.active) {
+    await sb.auth.signOut();
+    return { ok: false, error: "credentials" };
+  }
+  await clearRate(`login:email:${email}`);
+  redirect(safeNext(L(locale), next));
 }
 
 export async function signOut(locale: string) {
-  (await cookies()).delete(SESSION_COOKIE);
-  redirect(`/${locale}/login`);
+  const sb = await supabaseServer();
+  await sb.auth.signOut();
+  redirect(`/${L(locale)}/login`);
 }
 
-/** Magic link / forgot password: always "sent" (never reveal whether an email exists). */
-export async function requestEmail(input: unknown): Promise<AuthResult> {
-  if (!rateLimit(`email:${await clientIp()}`, 5, 15 * 60_000).ok)
-    return { ok: false, error: "locked", retryMinutes: 15 };
-  return emailOnlySchema.safeParse(input).success ? { ok: true } : { ok: false, error: "invalid" };
-}
-
-export async function resetPassword(input: unknown): Promise<AuthResult> {
-  if (!resetSchema.safeParse(input).success) return { ok: false, error: "invalid" };
-  return DEV ? { ok: true } : { ok: false, error: "unavailable" };
-}
-
-export async function acceptInvite(token: string, input: unknown): Promise<AuthResult> {
-  if (!rateLimit(`invite:${await clientIp()}`, 10, 15 * 60_000).ok)
-    return { ok: false, error: "locked", retryMinutes: 15 };
-  const parsed = inviteSchema.safeParse(input);
-  if (!parsed.success || typeof token !== "string" || token.length < 20)
-    return { ok: false, error: "invalid" };
-  if (!DEV) return { ok: false, error: "unavailable" };
-  const user = db.profiles.find((p) => p.invite_token === token && p.invited_at);
-  if (!user) return { ok: false, error: "invalid" };
-  user.full_name = parsed.data.fullName;
-  user.active = true;
-  user.invited_at = null;
-  user.invite_token = null;
+/** Magic link or password-reset email. Always "sent" (never reveal whether an email exists). */
+export async function requestEmail(input: unknown, mode: "magic" | "reset" = "magic", locale = "en"): Promise<AuthResult> {
+  const parsed = emailOnlySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (!(await rateLimit(`email:${await clientIp()}`, 5, 15 * 60_000)).ok) return { ok: false, error: "locked", retryMinutes: 15 };
+  const sb = await supabaseServer();
+  const origin = await requestOrigin();
+  const confirm = (next: string) => `${origin}/api/auth/confirm?next=${encodeURIComponent(next)}`;
+  if (mode === "magic") {
+    await sb.auth.signInWithOtp({ email: parsed.data.email, options: { shouldCreateUser: false, emailRedirectTo: confirm(`/${L(locale)}/dashboard`) } });
+  } else {
+    await sb.auth.resetPasswordForEmail(parsed.data.email, { redirectTo: confirm(`/${L(locale)}/reset-password`) });
+  }
   return { ok: true };
+}
+
+/** Set a new password (the recovery link already created a session). */
+export async function resetPassword(input: unknown): Promise<AuthResult> {
+  const parsed = resetSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const sb = await supabaseServer();
+  const { error } = await sb.auth.updateUser({ password: parsed.data.password });
+  return error ? { ok: false, error: "invalid" } : { ok: true };
+}
+
+/** Finish an invitation: the invite link signed the user in; now set name + password. */
+export async function acceptInvite(input: unknown): Promise<AuthResult> {
+  if (!(await rateLimit(`invite:${await clientIp()}`, 10, 15 * 60_000)).ok) return { ok: false, error: "locked", retryMinutes: 15 };
+  const parsed = inviteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const sb = await supabaseServer();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: "invalid" };
+  const { error } = await sb.auth.updateUser({ password: parsed.data.password, data: { full_name: parsed.data.fullName } });
+  return error ? { ok: false, error: "invalid" } : { ok: true };
 }

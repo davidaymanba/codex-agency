@@ -194,7 +194,7 @@ export function LoginForm({ next, devHint }: { next?: string; devHint: boolean }
           noValidate
           className="space-y-4"
           onSubmit={ml.handleSubmit(async (data) => {
-            const res = await requestEmail(data);
+            const res = await requestEmail(data, "magic", locale);
             if (res.ok) setMagicSent(true);
             else setServerErr(res.error);
           })}
@@ -228,6 +228,7 @@ export function LoginForm({ next, devHint }: { next?: string; devHint: boolean }
 
 export function ForgotForm() {
   const t = useTranslations("dash.auth");
+  const locale = useLocale();
   const err = useErr();
   const [sent, setSent] = useState(false);
   const f = useForm({ resolver: zodResolver(emailOnlySchema), mode: "onTouched" });
@@ -240,7 +241,7 @@ export function ForgotForm() {
         <form
           noValidate
           className="space-y-4"
-          onSubmit={f.handleSubmit(async (d) => (await requestEmail(d)).ok && setSent(true))}
+          onSubmit={f.handleSubmit(async (d) => (await requestEmail(d, "reset", locale)).ok && setSent(true))}
         >
           <TextField
             name="email"
@@ -313,7 +314,7 @@ export function ResetForm() {
 
 /* ---------------------------------------------------------------- Invite */
 
-export function InviteForm({ token }: { token: string }) {
+export function InviteForm() {
   const t = useTranslations("dash.auth");
   const err = useErr();
   const [state, setState] = useState<"idle" | "done" | ErrKey>("idle");
@@ -333,7 +334,7 @@ export function InviteForm({ token }: { token: string }) {
           noValidate
           className="space-y-4"
           onSubmit={f.handleSubmit(async (d) => {
-            const r = await acceptInvite(token, d);
+            const r = await acceptInvite(d);
             setState(r.ok ? "done" : r.error);
           })}
         >

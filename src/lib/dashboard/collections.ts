@@ -9,7 +9,7 @@ import {
   techLogoSchema,
   testimonialSchema,
 } from "@/lib/schemas/content";
-import { db } from "./mock-db";
+import { supabaseServer } from "@/lib/supabase/server";
 
 /**
  * Registry of the "simple" content collections managed by one generic dashboard screen.
@@ -18,7 +18,8 @@ import { db } from "./mock-db";
 type Row = Record<string, unknown> & { id: string; sort_order: number; published: boolean };
 
 type Def = {
-  rows: () => Row[];
+  /** Postgres table name. */
+  table: string;
   schema: z.ZodType;
   loc: string[];
   unique?: string;
@@ -29,7 +30,7 @@ type Def = {
 
 export const COLLECTIONS = {
   testimonials: {
-    rows: () => db.testimonials as unknown as Row[],
+    table: "testimonials",
     schema: testimonialSchema,
     loc: ["quote", "author_role"],
     title: (r) => String(r.author_name),
@@ -37,7 +38,7 @@ export const COLLECTIONS = {
     image: (r) => (r.avatar_url as string | null) ?? null,
   },
   team: {
-    rows: () => db.team as unknown as Row[],
+    table: "team_members",
     schema: teamMemberSchema,
     loc: ["name", "role"],
     title: (r) => String(r.name_en),
@@ -45,7 +46,7 @@ export const COLLECTIONS = {
     image: (r) => (r.photo_url as string | null) ?? null,
   },
   stats: {
-    rows: () => db.stats as unknown as Row[],
+    table: "stats",
     schema: statSchema,
     loc: ["label"],
     unique: "key",
@@ -53,14 +54,14 @@ export const COLLECTIONS = {
     subtitle: (r) => String(r.label_en),
   },
   techLogos: {
-    rows: () => db.techLogos as unknown as Row[],
+    table: "tech_logos",
     schema: techLogoSchema,
     loc: [],
     title: (r) => String(r.name),
     subtitle: (r) => `row ${r.marquee_row}${r.icon ? ` · ${r.icon}` : ""}`,
   },
   services: {
-    rows: () => db.services as unknown as Row[],
+    table: "services",
     schema: serviceSchema,
     loc: ["title", "tagline", "description", "team_name", "team_description"],
     unique: "slug",
@@ -68,7 +69,7 @@ export const COLLECTIONS = {
     subtitle: (r) => String(r.tagline_en),
   },
   solutions: {
-    rows: () => db.solutions as unknown as Row[],
+    table: "solutions",
     schema: solutionSchema,
     loc: ["title", "description"],
     unique: "slug",
@@ -119,13 +120,16 @@ export type CollectionItem = {
   values: Record<string, unknown>;
 };
 
-export function listCollection(key: CollectionKey): CollectionItem[] {
+/** All rows of a collection for the dashboard (RLS: staff see drafts too). */
+export async function collectionRows(key: CollectionKey): Promise<Row[]> {
   const def: Def = COLLECTIONS[key];
-  return def
-    .rows()
-    .slice()
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((r) => ({
+  const { data } = await (await supabaseServer()).from(def.table as never).select("*").order("sort_order" as never);
+  return (data ?? []) as unknown as Row[];
+}
+
+export async function listCollection(key: CollectionKey): Promise<CollectionItem[]> {
+  const def: Def = COLLECTIONS[key];
+  return (await collectionRows(key)).map((r) => ({
       id: r.id,
       title: def.title(r),
       subtitle: def.subtitle?.(r) ?? "",

@@ -246,7 +246,11 @@ function InviteDialog({
       }}
     >
       <DialogContent title={t("users.inviteTitle")} description={t("users.inviteBody")}>
-        {link ? (
+        {link === "" ? (
+          <p role="status" className="mt-5 border-s-2 border-primary bg-surface-2/60 px-4 py-3 text-sm">
+            {t("users.inviteEmailed")}
+          </p>
+        ) : link ? (
           <div className="mt-5 space-y-3">
             <Label htmlFor="inv-link">{t("users.inviteLink")}</Label>
             <div className="flex gap-2">
@@ -258,7 +262,7 @@ function InviteDialog({
               />
               <DashButton
                 onClick={async () => {
-                  await navigator.clipboard.writeText(new URL(link, location.origin).toString());
+                  await navigator.clipboard.writeText(link);
                   toast(t("media.copied"));
                 }}
               >
@@ -276,8 +280,8 @@ function InviteDialog({
               setBusy(true);
               const r = await inviteUser(email, role, locale);
               setBusy(false);
-              if (r.ok && r.data) {
-                setLink(r.data);
+              if (r.ok) {
+                setLink(r.data?.link ?? "");
                 toast(t("users.inviteSent"));
                 onDone();
               } else

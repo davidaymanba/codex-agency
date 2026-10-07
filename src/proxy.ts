@@ -1,25 +1,28 @@
 import createMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 import { routing } from "./i18n/routing";
+import { updateSession } from "./lib/supabase/proxy";
 
 const intl = createMiddleware(routing);
-const SESSION_COOKIE = "codex-session";
 const DASHBOARD = /^\/(en|ar)\/dashboard(?:\/|$)/;
 
 /**
- * 1. Optimistic guard: no session cookie on /{locale}/dashboard → login (with ?next=).
- *    The signature + role are verified again in the dashboard layout and in every server action.
- * 2. next-intl locale routing for everything else.
- * Backend phase: add Supabase session refresh here.
+ * 1. next-intl locale routing.
+ * 2. Supabase session refresh (cookie rotation) on every page request.
+ * 3. Optimistic guard: no valid session on /{locale}/dashboard → login (with ?next=).
+ *    The role is re-checked by `requireUser()` and by RLS on every query.
  */
-export default function proxy(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
+  const res = intl(req);
+  if (res.headers.get("location")) return res; // locale redirect — nothing else to do
+  const claims = await updateSession(req, res);
   const m = req.nextUrl.pathname.match(DASHBOARD);
-  if (m && !req.cookies.get(SESSION_COOKIE)) {
+  if (m && !claims) {
     const url = new URL(`/${m[1]}/login`, req.url);
     url.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
-  return intl(req);
+  return res;
 }
 
 export const config = {

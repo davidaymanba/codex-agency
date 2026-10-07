@@ -1,112 +1,86 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { authorize } from "@/lib/auth/session";
-import { db, uid } from "@/lib/dashboard/mock-db";
-import { logActivity } from "@/lib/dashboard/repo";
-import type { Profile } from "@/lib/dashboard/types";
+import { sendInviteEmail } from "@/lib/email/notify";
+import { requestOrigin } from "@/lib/rate-limit";
+import { dbError, supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseServer } from "@/lib/supabase/server";
 
 /**
- * User management (admin only). Guards: nobody changes their own access, and there is always
- * at least one active admin. Backend phase: invitations go through Supabase Auth
- * (`auth.admin.inviteUserByEmail`) + a Resend email; here the link is returned to share manually.
+ * User management (admin only). Role/active changes run AS THE ADMIN through RLS, and a DB
+ * trigger blocks self-changes and removing the last admin. Auth-level operations (invite links,
+ * bans, deleting a pending invite) use the service role.
  */
-type R<T = undefined> =
-  | { ok: true; data?: T }
-  | { ok: false; error: "forbidden" | "invalid" | "self" | "last_admin" | "exists" | "not_found" };
+type Err = "forbidden" | "invalid" | "self" | "last_admin" | "exists" | "not_found";
+type R<T = undefined> = { ok: true; data?: T } | { ok: false; error: Err };
 const roleSchema = z.enum(["admin", "editor", "viewer"]);
+const idSchema = z.uuid();
+const refresh = () => revalidatePath("/[locale]/dashboard/users", "page");
 
-const activeAdmins = () =>
-  db.profiles.filter((p) => p.role === "admin" && p.active && !p.invited_at);
-
-export async function inviteUser(email: string, role: string, locale: string): Promise<R<string>> {
+export async function inviteUser(email: string, role: string, locale: string): Promise<R<{ link: string | null }>> {
   const me = await authorize("admin");
   if (!me) return { ok: false, error: "forbidden" };
   const e = z.email().max(120).safeParse(email.trim().toLowerCase());
   const r = roleSchema.safeParse(role);
   if (!e.success || !r.success) return { ok: false, error: "invalid" };
-  if (db.profiles.some((p) => p.email === e.data)) return { ok: false, error: "exists" };
-  const token = randomBytes(24).toString("base64url");
-  const profile: Profile = {
-    id: uid("u"),
+  const lang = locale === "ar" ? "ar" : "en";
+
+  const admin = supabaseAdmin();
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "invite",
     email: e.data,
-    full_name: e.data.split("@")[0],
-    role: r.data,
-    avatar_url: null,
-    active: false,
-    invited_at: new Date().toISOString(),
-    invite_token: token,
-    last_sign_in_at: null,
-    language: locale === "ar" ? "ar" : "en",
-    theme: "system",
-  };
-  db.profiles.push(profile);
-  await logActivity({
-    actor_id: me.id,
-    action: "invite",
-    entity: "user",
-    entity_id: profile.id,
-    summary: `${me.full_name} invited ${e.data} as ${r.data}`,
-    meta: { actor: me.full_name, name: e.data, role: r.data },
+    options: { data: { language: lang } },
   });
-  return { ok: true, data: `/${locale === "ar" ? "ar" : "en"}/accept-invite?token=${token}` };
+  if (error || !data.user) return { ok: false, error: error?.message?.toLowerCase().includes("already") ? "exists" : "invalid" };
+
+  // Role lives in app_metadata (not user-editable) and on the profile row.
+  await admin.auth.admin.updateUserById(data.user.id, { app_metadata: { role: r.data } });
+  await admin.from("profiles").update({ role: r.data }).eq("id", data.user.id);
+
+  const link = `${await requestOrigin()}/api/auth/confirm?token_hash=${data.properties.hashed_token}&type=invite&next=/${lang}/accept-invite`;
+  const emailed = await sendInviteEmail(e.data, link, lang);
+  refresh();
+  return { ok: true, data: { link: emailed ? null : link } };
 }
 
 export async function changeRole(id: string, role: string): Promise<R> {
   const me = await authorize("admin");
   if (!me) return { ok: false, error: "forbidden" };
   const r = roleSchema.safeParse(role);
-  const user = db.profiles.find((p) => p.id === id);
-  if (!r.success || !user) return { ok: false, error: "invalid" };
-  if (user.id === me.id) return { ok: false, error: "self" };
-  if (user.role === "admin" && r.data !== "admin" && activeAdmins().length <= 1)
-    return { ok: false, error: "last_admin" };
-  user.role = r.data;
-  await logActivity({
-    actor_id: me.id,
-    action: "role",
-    entity: "user",
-    entity_id: id,
-    summary: `${me.full_name} changed ${user.full_name} to ${r.data}`,
-    meta: { actor: me.full_name, name: user.full_name, role: r.data },
-  });
+  if (!r.success || !idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
+  if (id === me.id) return { ok: false, error: "self" };
+  const { error, count } = await (await supabaseServer()).from("profiles").update({ role: r.data }, { count: "exact" }).eq("id", id);
+  if (error) return { ok: false, error: (dbError(error) as Err) ?? "invalid" };
+  if (!count) return { ok: false, error: "not_found" };
+  await supabaseAdmin().auth.admin.updateUserById(id, { app_metadata: { role: r.data } });
+  refresh();
   return { ok: true };
 }
 
 export async function setUserActive(id: string, active: boolean): Promise<R> {
   const me = await authorize("admin");
   if (!me) return { ok: false, error: "forbidden" };
-  const user = db.profiles.find((p) => p.id === id);
-  if (!user || typeof active !== "boolean") return { ok: false, error: "invalid" };
-  if (user.id === me.id) return { ok: false, error: "self" };
-  if (!active && user.role === "admin" && activeAdmins().length <= 1)
-    return { ok: false, error: "last_admin" };
-  user.active = active;
-  await logActivity({
-    actor_id: me.id,
-    action: "update",
-    entity: "user",
-    entity_id: id,
-    summary: `${me.full_name} ${active ? "reactivated" : "deactivated"} ${user.full_name}`,
-    meta: { name: user.full_name },
-  });
+  if (!idSchema.safeParse(id).success || typeof active !== "boolean") return { ok: false, error: "invalid" };
+  if (id === me.id) return { ok: false, error: "self" };
+  const { error, count } = await (await supabaseServer()).from("profiles").update({ active }, { count: "exact" }).eq("id", id);
+  if (error) return { ok: false, error: (dbError(error) as Err) ?? "invalid" };
+  if (!count) return { ok: false, error: "not_found" };
+  // Also block/unblock at the auth level so existing sessions can't refresh.
+  await supabaseAdmin().auth.admin.updateUserById(id, { ban_duration: active ? "none" : "876000h" });
+  refresh();
   return { ok: true };
 }
 
 export async function revokeInvite(id: string): Promise<R> {
   const me = await authorize("admin");
   if (!me) return { ok: false, error: "forbidden" };
-  const i = db.profiles.findIndex((p) => p.id === id && p.invited_at);
-  if (i === -1) return { ok: false, error: "not_found" };
-  const [gone] = db.profiles.splice(i, 1);
-  await logActivity({
-    actor_id: me.id,
-    action: "delete",
-    entity: "user",
-    entity_id: id,
-    summary: `${me.full_name} revoked the invitation for ${gone.email}`,
-    meta: { count: "1" },
-  });
+  if (!idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
+  const { data: p } = await (await supabaseServer()).from("profiles").select("invited_at, last_sign_in_at").eq("id", id).maybeSingle();
+  if (!p?.invited_at || p.last_sign_in_at) return { ok: false, error: "not_found" };
+  const { error } = await supabaseAdmin().auth.admin.deleteUser(id);
+  if (error) return { ok: false, error: "invalid" };
+  refresh();
   return { ok: true };
 }

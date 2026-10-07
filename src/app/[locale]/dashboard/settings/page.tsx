@@ -3,7 +3,7 @@ import { SettingsForm } from "@/components/dashboard/admin/settings-form";
 import { DashPageHeader } from "@/components/dashboard/content/page-header";
 import type { Locale } from "@/i18n/routing";
 import { requireUser } from "@/lib/auth/session";
-import { db } from "@/lib/dashboard/mock-db";
+import { settingsRow } from "@/lib/dashboard/repo";
 
 export const metadata = { title: "Settings" };
 
@@ -12,7 +12,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/dash
   setRequestLocale(locale);
   await requireUser(locale, "editor");
   const t = await getTranslations("dash.settings");
-  const s = db.settings;
+  const s = await settingsRow();
   return (
     <>
       <DashPageHeader title={t("title")} subtitle={t("subtitle")} />

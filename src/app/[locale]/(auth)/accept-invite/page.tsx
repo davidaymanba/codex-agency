@@ -1,8 +1,6 @@
 import { InviteForm } from "@/components/dashboard/auth/auth-forms";
 
-export default async function AcceptInvitePage({
-  searchParams,
-}: PageProps<"/[locale]/accept-invite">) {
-  const token = (await searchParams).token;
-  return <InviteForm token={typeof token === "string" ? token : ""} />;
+/** Reached from the invite email (via /api/auth/confirm, which already signed the user in). */
+export default function AcceptInvitePage() {
+  return <InviteForm />;
 }

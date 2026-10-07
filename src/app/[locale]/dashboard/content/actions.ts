@@ -1,154 +1,99 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { PostRow, ProjectRow } from "@/content/types";
+import type { PostRow } from "@/content/types";
 import { authorize } from "@/lib/auth/session";
 import { COLLECTION_KEYS, getDef, toRow, type CollectionKey } from "@/lib/dashboard/collections";
-import { db, uid } from "@/lib/dashboard/mock-db";
-import { logActivity } from "@/lib/dashboard/repo";
 import { revalidatePublic } from "@/lib/dashboard/revalidate";
-import { postSchema, projectSchema } from "@/lib/schemas/content";
 import { docText } from "@/lib/rich";
+import { postSchema, projectSchema } from "@/lib/schemas/content";
+import { dbError } from "@/lib/supabase/admin";
+import { SUPABASE_URL } from "@/lib/supabase/env";
+import { supabaseServer } from "@/lib/supabase/server";
 
 /**
- * Content mutations (editor+). Every action: role check → zod validation → write →
- * activity log → on-demand revalidation of the public site.
+ * Content mutations (editor+): role check → zod validation → write AS THE USER (RLS) →
+ * on-demand revalidation of the public site. The activity log is written by DB triggers.
  */
 
 export type Result<T = undefined> =
   | { ok: true; data?: T }
-  | {
-      ok: false;
-      error: "forbidden" | "invalid" | "not_found" | "duplicate";
-      issues?: { path: string; message: string }[];
-    };
+  | { ok: false; error: "forbidden" | "invalid" | "not_found" | "duplicate"; issues?: { path: string; message: string }[] };
 
 const keySchema = z.enum(COLLECTION_KEYS as [CollectionKey, ...CollectionKey[]]);
-const idSchema = z.string().min(1).max(80);
-const issues = (e: z.ZodError) =>
-  e.issues.map((i) => ({ path: i.path.join("."), message: i.message }));
-
-async function editor() {
-  return authorize("editor");
-}
+const idSchema = z.uuid();
+const issues = (e: z.ZodError) => e.issues.map((i) => ({ path: i.path.join("."), message: i.message }));
+const fail = <T,>(e: Parameters<typeof dbError>[0], uniqueField?: string): Result<T> => {
+  const code = dbError(e);
+  if (code === "duplicate") return { ok: false, error: "duplicate", issues: uniqueField ? [{ path: uniqueField, message: "duplicate" }] : undefined };
+  return { ok: false, error: code === "forbidden" || code === "self" || code === "last_admin" ? "forbidden" : code === "not_found" ? "not_found" : "invalid" };
+};
+const editor = () => authorize("editor");
+const db = () => supabaseServer();
 
 /* ---------------------------------------------------------------- simple collections */
 
-export async function saveCollectionItem(
-  key: string,
-  id: string | null,
-  values: unknown,
-): Promise<Result<string>> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
+export async function saveCollectionItem(key: string, id: string | null, values: unknown): Promise<Result<string>> {
+  if (!(await editor())) return { ok: false, error: "forbidden" };
   const k = keySchema.safeParse(key);
-  if (!k.success) return { ok: false, error: "invalid" };
+  if (!k.success || (id !== null && !idSchema.safeParse(id).success)) return { ok: false, error: "invalid" };
   const def = getDef(k.data);
   const parsed = def.schema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "invalid", issues: issues(parsed.error) };
   const fields = toRow(k.data, parsed.data as Record<string, unknown>);
-  const rows = def.rows();
+  const client = await db();
+  const table = client.from(def.table as never);
 
-  if (def.unique) {
-    const clash = rows.find((r) => r[def.unique!] === fields[def.unique!] && r.id !== id);
-    if (clash)
-      return {
-        ok: false,
-        error: "duplicate",
-        issues: [{ path: def.unique, message: "duplicate" }],
-      };
+  if (id) {
+    const { data, error } = await table.update(fields as never).eq("id" as never, id).select("id").maybeSingle();
+    if (error) return fail(error, def.unique);
+    if (!data) return { ok: false, error: "not_found" };
+  } else {
+    const { data: last } = await client.from(def.table as never).select("sort_order").order("sort_order" as never, { ascending: false }).limit(1).maybeSingle();
+    const { data, error } = await client
+      .from(def.table as never)
+      .insert({ ...fields, sort_order: ((last as { sort_order?: number } | null)?.sort_order ?? 0) + 1 } as never)
+      .select("id")
+      .single();
+    if (error) return fail(error, def.unique);
+    id = (data as { id: string }).id;
   }
-
-  let row = id ? rows.find((r) => r.id === id) : undefined;
-  if (id && !row) return { ok: false, error: "not_found" };
-  if (row) Object.assign(row, fields);
-  else {
-    row = {
-      ...fields,
-      id: uid(k.data),
-      sort_order: Math.max(0, ...rows.map((r) => r.sort_order)) + 1,
-    } as (typeof rows)[number];
-    rows.push(row);
-  }
-  await logActivity({
-    actor_id: user.id,
-    action: id ? "content_update" : "content_create",
-    entity: "content",
-    entity_id: row.id,
-    summary: `${user.full_name} ${id ? "updated" : "created"} ${def.title(row)} (${k.data})`,
-    meta: { actor: user.full_name, name: def.title(row), section: k.data },
-  });
   revalidatePublic();
-  return { ok: true, data: row.id };
+  return { ok: true, data: id };
 }
 
 export async function deleteCollectionItem(key: string, id: string): Promise<Result> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
+  if (!(await editor())) return { ok: false, error: "forbidden" };
   const k = keySchema.safeParse(key);
   if (!k.success || !idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
-  const def = getDef(k.data);
-  const rows = def.rows();
-  const i = rows.findIndex((r) => r.id === id);
-  if (i === -1) return { ok: false, error: "not_found" };
-  const [gone] = rows.splice(i, 1);
-  await logActivity({
-    actor_id: user.id,
-    action: "content_delete",
-    entity: "content",
-    entity_id: id,
-    summary: `${user.full_name} deleted ${def.title(gone)} (${k.data})`,
-    meta: { actor: user.full_name, name: def.title(gone), section: k.data },
-  });
+  const { error, count } = await (await db()).from(getDef(k.data).table as never).delete({ count: "exact" }).eq("id" as never, id);
+  if (error) return fail(error);
+  if (!count) return { ok: false, error: "not_found" };
   revalidatePublic();
   return { ok: true };
 }
 
 export async function reorderCollection(key: string, ids: string[]): Promise<Result> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
+  if (!(await editor())) return { ok: false, error: "forbidden" };
   const k = keySchema.safeParse(key);
   const list = z.array(idSchema).max(500).safeParse(ids);
   if (!k.success || !list.success) return { ok: false, error: "invalid" };
-  const rows = getDef(k.data).rows();
-  list.data.forEach((id, i) => {
-    const r = rows.find((x) => x.id === id);
-    if (r) r.sort_order = i + 1;
-  });
-  await logActivity({
-    actor_id: user.id,
-    action: "reorder",
-    entity: "content",
-    entity_id: null,
-    summary: `${user.full_name} reordered ${k.data}`,
-    meta: { actor: user.full_name, section: k.data },
-  });
+  const client = await db();
+  const results = await Promise.all(list.data.map((id, i) => client.from(getDef(k.data).table as never).update({ sort_order: i + 1 } as never).eq("id" as never, id)));
+  const err = results.find((r) => r.error)?.error;
+  if (err) return fail(err);
   revalidatePublic();
   return { ok: true };
 }
 
-export async function setCollectionPublished(
-  key: string,
-  id: string,
-  published: boolean,
-): Promise<Result> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
+export async function setCollectionPublished(key: string, id: string, published: boolean): Promise<Result> {
+  if (!(await editor())) return { ok: false, error: "forbidden" };
   const k = keySchema.safeParse(key);
-  if (!k.success || !idSchema.safeParse(id).success || typeof published !== "boolean")
-    return { ok: false, error: "invalid" };
-  const def = getDef(k.data);
-  const row = def.rows().find((r) => r.id === id);
-  if (!row) return { ok: false, error: "not_found" };
-  row.published = published;
-  await logActivity({
-    actor_id: user.id,
-    action: published ? "publish" : "unpublish",
-    entity: "content",
-    entity_id: id,
-    summary: `${user.full_name} ${published ? "published" : "unpublished"} ${def.title(row)}`,
-    meta: { actor: user.full_name, name: def.title(row) },
-  });
+  if (!k.success || !idSchema.safeParse(id).success || typeof published !== "boolean") return { ok: false, error: "invalid" };
+  const { error, count } = await (await db()).from(getDef(k.data).table as never).update({ published } as never, { count: "exact" }).eq("id" as never, id);
+  if (error) return fail(error);
+  if (!count) return { ok: false, error: "not_found" };
   revalidatePublic();
   return { ok: true };
 }
@@ -167,104 +112,59 @@ const flatLoc = (v: Record<string, unknown>, keys: string[]) => {
 };
 
 export async function saveProject(id: string | null, values: unknown): Promise<Result<string>> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
+  if (!(await editor())) return { ok: false, error: "forbidden" };
+  if (id !== null && !idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
   const parsed = projectSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "invalid", issues: issues(parsed.error) };
-  const v = parsed.data;
-  if (db.projects.some((p) => p.slug === v.slug && p.id !== id))
-    return { ok: false, error: "duplicate", issues: [{ path: "slug", message: "duplicate" }] };
-  const fields = flatLoc(v as unknown as Record<string, unknown>, [
-    "title",
-    "summary",
-    "challenge",
-    "approach",
-    "seo_title",
-    "seo_description",
-  ]) as Partial<ProjectRow>;
-
-  let row = id ? db.projects.find((p) => p.id === id) : undefined;
-  if (id && !row) return { ok: false, error: "not_found" };
-  if (row) Object.assign(row, fields);
-  else {
-    row = {
-      ...(fields as ProjectRow),
-      id: uid("prj"),
-      sort_order: Math.max(0, ...db.projects.map((p) => p.sort_order)) + 1,
-    };
-    db.projects.push(row);
+  const fields = flatLoc(parsed.data as unknown as Record<string, unknown>, ["title", "summary", "challenge", "approach", "seo_title", "seo_description"]);
+  const client = await db();
+  if (id) {
+    const { data, error } = await client.from("projects").update(fields as never).eq("id", id).select("id").maybeSingle();
+    if (error) return fail(error, "slug");
+    if (!data) return { ok: false, error: "not_found" };
+  } else {
+    const { data: last } = await client.from("projects").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+    const { data, error } = await client
+      .from("projects")
+      .insert({ ...fields, sort_order: (last?.sort_order ?? 0) + 1 } as never)
+      .select("id")
+      .single();
+    if (error) return fail(error, "slug");
+    id = data.id;
   }
-  await logActivity({
-    actor_id: user.id,
-    action: id ? "content_update" : "content_create",
-    entity: "project",
-    entity_id: row.id,
-    summary: `${user.full_name} saved project ${row.title_en}`,
-    meta: { actor: user.full_name, name: row.title_en, section: "projects" },
-  });
   revalidatePublic();
-  return { ok: true, data: row.id };
+  return { ok: true, data: id };
 }
 
 export async function deleteProject(id: string): Promise<Result> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
-  const i = db.projects.findIndex((p) => p.id === id);
-  if (i === -1) return { ok: false, error: "not_found" };
-  const [gone] = db.projects.splice(i, 1);
-  await logActivity({
-    actor_id: user.id,
-    action: "content_delete",
-    entity: "project",
-    entity_id: id,
-    summary: `${user.full_name} deleted project ${gone.title_en}`,
-    meta: { actor: user.full_name, name: gone.title_en, section: "projects" },
-  });
+  if (!(await editor())) return { ok: false, error: "forbidden" };
+  if (!idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
+  const { error, count } = await (await db()).from("projects").delete({ count: "exact" }).eq("id", id);
+  if (error) return fail(error);
+  if (!count) return { ok: false, error: "not_found" };
   revalidatePublic();
   return { ok: true };
 }
 
 export async function patchProject(id: string, patch: unknown): Promise<Result> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
-  const p = z
-    .object({ featured: z.boolean().optional(), status: z.enum(["draft", "published"]).optional() })
-    .strict()
-    .safeParse(patch);
-  if (!p.success) return { ok: false, error: "invalid" };
-  const row = db.projects.find((x) => x.id === id);
-  if (!row) return { ok: false, error: "not_found" };
-  Object.assign(row, p.data);
-  if (p.data.status)
-    await logActivity({
-      actor_id: user.id,
-      action: p.data.status === "published" ? "publish" : "unpublish",
-      entity: "project",
-      entity_id: id,
-      summary: `${user.full_name} set ${row.title_en} to ${p.data.status}`,
-      meta: { actor: user.full_name, name: row.title_en },
-    });
+  if (!(await editor())) return { ok: false, error: "forbidden" };
+  const p = z.object({ featured: z.boolean().optional(), status: z.enum(["draft", "published"]).optional() }).strict().safeParse(patch);
+  if (!p.success || !idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
+  const { error, count } = await (await db()).from("projects").update(p.data, { count: "exact" }).eq("id", id);
+  if (error) return fail(error);
+  if (!count) return { ok: false, error: "not_found" };
   revalidatePublic();
   return { ok: true };
 }
 
 export async function reorderProjects(ids: string[]): Promise<Result> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
+  if (!(await editor())) return { ok: false, error: "forbidden" };
   const list = z.array(idSchema).max(500).safeParse(ids);
   if (!list.success) return { ok: false, error: "invalid" };
-  list.data.forEach((id, i) => {
-    const r = db.projects.find((x) => x.id === id);
-    if (r) r.sort_order = i + 1;
-  });
-  await logActivity({
-    actor_id: user.id,
-    action: "reorder",
-    entity: "project",
-    entity_id: null,
-    summary: `${user.full_name} reordered projects`,
-    meta: { actor: user.full_name, section: "projects" },
-  });
+  const client = await db();
+  const results = await Promise.all(list.data.map((id, i) => client.from("projects").update({ sort_order: i + 1 }).eq("id", id)));
+  const err = results.find((r) => r.error)?.error;
+  if (err) return fail(err);
   revalidatePublic();
   return { ok: true };
 }
@@ -272,125 +172,132 @@ export async function reorderProjects(ids: string[]): Promise<Result> {
 /* ---------------------------------------------------------------- posts */
 
 export async function savePost(id: string | null, values: unknown): Promise<Result<string>> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
+  if (!(await editor())) return { ok: false, error: "forbidden" };
+  if (id !== null && !idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
   const parsed = postSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "invalid", issues: issues(parsed.error) };
   const v = parsed.data;
-  if (db.posts.some((p) => p.slug === v.slug && p.id !== id))
-    return { ok: false, error: "duplicate", issues: [{ path: "slug", message: "duplicate" }] };
-  // A future date on a "published" post becomes "scheduled"; a past date on "scheduled" goes live.
+  // A future date on a non-draft post means "scheduled"; it goes live automatically (RLS checks the date).
   const future = new Date(v.published_at) > new Date();
   const status = v.status === "draft" ? "draft" : future ? "scheduled" : "published";
-  const words = docText(v.content_en as PostRow["content_en"])
-    .split(/\s+/)
-    .filter(Boolean).length;
+  const words = docText(v.content_en as PostRow["content_en"]).split(/\s+/).filter(Boolean).length;
   const fields = {
-    ...flatLoc(v as unknown as Record<string, unknown>, [
-      "title",
-      "excerpt",
-      "seo_title",
-      "seo_description",
-    ]),
+    ...flatLoc(v as unknown as Record<string, unknown>, ["title", "excerpt", "seo_title", "seo_description"]),
     status,
     reading_minutes: Math.max(1, Math.round(words / 220)),
-  } as Partial<PostRow>;
-
-  let row = id ? db.posts.find((p) => p.id === id) : undefined;
-  if (id && !row) return { ok: false, error: "not_found" };
-  if (row) Object.assign(row, fields);
-  else {
-    row = { ...(fields as PostRow), id: uid("post") };
-    db.posts.push(row);
+  };
+  const client = await db();
+  if (id) {
+    const { data, error } = await client.from("posts").update(fields as never).eq("id", id).select("id").maybeSingle();
+    if (error) return fail(error, "slug");
+    if (!data) return { ok: false, error: "not_found" };
+  } else {
+    const { data, error } = await client.from("posts").insert(fields as never).select("id").single();
+    if (error) return fail(error, "slug");
+    id = data.id;
   }
-  await logActivity({
-    actor_id: user.id,
-    action: id ? "content_update" : "content_create",
-    entity: "post",
-    entity_id: row.id,
-    summary: `${user.full_name} saved post ${row.title_en}`,
-    meta: { actor: user.full_name, name: row.title_en, section: "posts" },
-  });
   revalidatePublic();
-  return { ok: true, data: row.id };
+  return { ok: true, data: id };
 }
 
 export async function deletePost(id: string): Promise<Result> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
-  const i = db.posts.findIndex((p) => p.id === id);
-  if (i === -1) return { ok: false, error: "not_found" };
-  const [gone] = db.posts.splice(i, 1);
-  await logActivity({
-    actor_id: user.id,
-    action: "content_delete",
-    entity: "post",
-    entity_id: id,
-    summary: `${user.full_name} deleted post ${gone.title_en}`,
-    meta: { actor: user.full_name, name: gone.title_en, section: "posts" },
-  });
+  if (!(await editor())) return { ok: false, error: "forbidden" };
+  if (!idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
+  const { error, count } = await (await db()).from("posts").delete({ count: "exact" }).eq("id", id);
+  if (error) return fail(error);
+  if (!count) return { ok: false, error: "not_found" };
   revalidatePublic();
   return { ok: true };
 }
 
-/* ---------------------------------------------------------------- media */
+/* ---------------------------------------------------------------- media (Supabase Storage) */
+
+const BUCKET = "media";
+const MAX_BYTES = 8 * 1024 * 1024;
+const MIME_EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif", "image/gif": "gif" };
+const publicUrl = (path: string) => `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+
+/** Step 1 of an upload: a short-lived signed URL the browser PUTs the file to (with progress). */
+export async function createUpload(mime: string, size: number) {
+  if (!(await editor())) return { ok: false as const, error: "forbidden" as const };
+  const ext = MIME_EXT[mime];
+  if (!ext || !Number.isInteger(size) || size <= 0 || size > MAX_BYTES) return { ok: false as const, error: "invalid" as const };
+  const d = new Date();
+  const path = `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}.${ext}`;
+  const { data, error } = await (await db()).storage.from(BUCKET).createSignedUploadUrl(path);
+  if (error || !data) return { ok: false as const, error: "forbidden" as const };
+  return { ok: true as const, path, signedUrl: data.signedUrl };
+}
+
+/** Step 2: register the uploaded object (verified to exist) in the media library. */
+export async function registerMedia(path: string, filename: string) {
+  const user = await editor();
+  if (!user) return { ok: false as const, error: "forbidden" as const };
+  if (!/^\d{4}\/\d{2}\/[0-9a-f-]{36}\.(jpg|png|webp|avif|gif)$/.test(path)) return { ok: false as const, error: "invalid" as const };
+  const client = await db();
+  const [dir, file] = [path.slice(0, path.lastIndexOf("/")), path.slice(path.lastIndexOf("/") + 1)];
+  const { data: listing } = await client.storage.from(BUCKET).list(dir, { search: file, limit: 1 });
+  const obj = listing?.find((o) => o.name === file);
+  if (!obj) return { ok: false as const, error: "not_found" as const };
+  const meta = obj.metadata as { mimetype?: string; size?: number } | null;
+  const { data, error } = await client
+    .from("media")
+    .insert({
+      bucket: BUCKET,
+      path,
+      url: publicUrl(path),
+      filename: filename.replace(/[^\w.\- ]+/g, "_").slice(0, 120) || "image",
+      mime: meta?.mimetype ?? "image/jpeg",
+      size: meta?.size ?? 1,
+      uploaded_by: user.id,
+    })
+    .select()
+    .single();
+  if (error) return { ok: false as const, error: "invalid" as const };
+  return { ok: true as const, media: data };
+}
+
+export async function listMedia() {
+  if (!(await authorize("viewer"))) return [];
+  const { data } = await (await db()).from("media").select("id, url, filename, size, mime, alt_en, alt_ar, created_at").order("created_at", { ascending: false });
+  return data ?? [];
+}
 
 /** Where a media URL is referenced (shown before deleting). */
 export async function mediaUsage(url: string): Promise<string[]> {
   if (!(await authorize("viewer"))) return [];
+  const client = await db();
+  const [projects, posts, team, testimonials] = await Promise.all([
+    client.from("projects").select("title_en, cover_image, gallery"),
+    client.from("posts").select("title_en, cover_image"),
+    client.from("team_members").select("name_en, photo_url"),
+    client.from("testimonials").select("author_name, avatar_url"),
+  ]);
   const used: string[] = [];
-  db.projects.forEach(
-    (p) =>
-      (p.cover_image === url || p.gallery?.includes(url)) && used.push(`Project: ${p.title_en}`),
-  );
-  db.posts.forEach((p) => p.cover_image === url && used.push(`Post: ${p.title_en}`));
-  db.team.forEach((m) => m.photo_url === url && used.push(`Team: ${m.name_en}`));
-  db.testimonials.forEach(
-    (tm) => tm.avatar_url === url && used.push(`Testimonial: ${tm.author_name}`),
-  );
+  (projects.data ?? []).forEach((p) => (p.cover_image === url || p.gallery?.includes(url)) && used.push(`Project: ${p.title_en}`));
+  (posts.data ?? []).forEach((p) => p.cover_image === url && used.push(`Post: ${p.title_en}`));
+  (team.data ?? []).forEach((m) => m.photo_url === url && used.push(`Team: ${m.name_en}`));
+  (testimonials.data ?? []).forEach((tm) => tm.avatar_url === url && used.push(`Testimonial: ${tm.author_name}`));
   return used;
 }
 
 export async function deleteMedia(id: string): Promise<Result> {
-  const user = await editor();
-  if (!user) return { ok: false, error: "forbidden" };
-  const i = db.media.findIndex((m) => m.id === id);
-  if (i === -1) return { ok: false, error: "not_found" };
-  const [gone] = db.media.splice(i, 1);
-  db.mediaBlobs.delete(id);
-  await logActivity({
-    actor_id: user.id,
-    action: "content_delete",
-    entity: "media",
-    entity_id: id,
-    summary: `${user.full_name} deleted ${gone.filename}`,
-    meta: { actor: user.full_name, name: gone.filename, section: "media" },
-  });
+  if (!(await editor())) return { ok: false, error: "forbidden" };
+  if (!idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
+  const client = await db();
+  const { data: row } = await client.from("media").select("bucket, path").eq("id", id).maybeSingle();
+  if (!row) return { ok: false, error: "not_found" };
+  const { error: se } = await client.storage.from(row.bucket).remove([row.path]);
+  if (se) return { ok: false, error: "forbidden" };
+  const { error } = await client.from("media").delete().eq("id", id);
+  if (error) return fail(error);
   return { ok: true };
 }
 
 export async function updateMediaAlt(id: string, alt: unknown): Promise<Result> {
   if (!(await editor())) return { ok: false, error: "forbidden" };
-  const a = z
-    .object({ en: z.string().trim().max(200), ar: z.string().trim().max(200) })
-    .safeParse(alt);
-  const m = db.media.find((x) => x.id === id);
-  if (!a.success || !m) return { ok: false, error: "invalid" };
-  m.alt_en = a.data.en;
-  m.alt_ar = a.data.ar;
-  return { ok: true };
-}
-
-export async function listMedia() {
-  if (!(await authorize("viewer"))) return [];
-  return db.media.map((m) => ({
-    id: m.id,
-    url: m.url,
-    filename: m.filename,
-    size: m.size,
-    mime: m.mime,
-    alt_en: m.alt_en,
-    alt_ar: m.alt_ar,
-    created_at: m.created_at,
-  }));
+  const a = z.object({ en: z.string().trim().max(200), ar: z.string().trim().max(200) }).safeParse(alt);
+  if (!a.success || !idSchema.safeParse(id).success) return { ok: false, error: "invalid" };
+  const { error } = await (await db()).from("media").update({ alt_en: a.data.en, alt_ar: a.data.ar }).eq("id", id);
+  return error ? fail(error) : { ok: true };
 }

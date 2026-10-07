@@ -6,7 +6,7 @@ import { DashButton } from "@/components/dashboard/ui/dash-button";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { hasRole, requireUser } from "@/lib/auth/session";
-import { db } from "@/lib/dashboard/mock-db";
+import { allProjects } from "@/lib/dashboard/repo";
 
 export const metadata = { title: "Projects" };
 
@@ -17,10 +17,7 @@ export default async function ProjectsAdminPage({
   setRequestLocale(locale);
   const user = await requireUser(locale);
   const t = await getTranslations("dash.projects");
-  const items = db.projects
-    .slice()
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((p) => ({
+  const items = (await allProjects()).map((p) => ({
       id: p.id,
       slug: p.slug,
       title: locale === "ar" ? p.title_ar : p.title_en,

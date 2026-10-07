@@ -7,7 +7,7 @@ import { Card } from "@/components/dashboard/ui/primitives";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { hasRole, requireUser } from "@/lib/auth/session";
-import { db } from "@/lib/dashboard/mock-db";
+import { allPosts } from "@/lib/dashboard/repo";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Posts" };
@@ -18,7 +18,7 @@ export default async function PostsAdminPage({ params }: PageProps<"/[locale]/da
   const user = await requireUser(locale);
   const [t, format] = await Promise.all([getTranslations("dash"), getFormatter()]);
   const now = new Date();
-  const posts = db.posts.slice().sort((a, b) => b.published_at.localeCompare(a.published_at));
+  const posts = await allPosts();
   const state = (p: (typeof posts)[number]) =>
     p.status === "draft" ? "draft" : new Date(p.published_at) > now ? "scheduled" : "published";
 

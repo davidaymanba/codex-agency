@@ -14,6 +14,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { pollLeads } from "@/app/[locale]/dashboard/actions";
+import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export type LeadPing = { id: string; name: string; service: string; created_at: string };
 
@@ -26,12 +27,12 @@ type Stream = {
 
 const Ctx = createContext<Stream | null>(null);
 const READ_KEY = "codex-dash-last-read";
-const POLL_MS = 15_000;
+const POLL_MS = 60_000; // safety net; Supabase Realtime delivers new leads instantly
 
 /**
- * "Realtime" new-lead feed. Today it polls a server action every 15s (paused while the tab
- * is hidden) and on demand (`codex:poll-leads` event). Backend phase: replace `check()` with a
- * Supabase Realtime channel on `leads` — the context API stays the same.
+ * Realtime new-lead feed: a Supabase Realtime channel on `leads` INSERTs (RLS-filtered, so only
+ * staff receive rows) triggers `check()`, which fetches the new rows and shows toasts. A slow
+ * poll remains as a safety net if the socket drops.
  */
 export function LeadStreamProvider({
   initial,
@@ -87,9 +88,24 @@ export function LeadStreamProvider({
     timer = setTimeout(loop, POLL_MS);
     const now = () => void check();
     window.addEventListener("codex:poll-leads", now);
+    // Realtime must join with the user's JWT (not the anon key) or RLS filters every row out.
+    const sb = supabaseBrowser();
+    const channel = sb.channel("dashboard-leads").on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, () => void check());
+    let cancelled = false;
+    void sb.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      if (data.session) sb.realtime.setAuth(data.session.access_token);
+      channel.subscribe();
+    });
+    const { data: authSub } = sb.auth.onAuthStateChange((_e, session) => {
+      if (session) sb.realtime.setAuth(session.access_token);
+    });
     return () => {
+      cancelled = true;
       clearTimeout(timer);
       window.removeEventListener("codex:poll-leads", now);
+      authSub.subscription.unsubscribe();
+      void sb.removeChannel(channel);
     };
   }, [check]);
 

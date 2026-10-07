@@ -52,7 +52,7 @@ Work proceeds in the 9 phases of the brief — stop after each phase for approva
 - Primitives (`@/components/motion`): `RevealText ScrambleText Reveal BlockReveal BracketFrame Magnetic TiltCard Marquee Counter ParallaxLayer`; `MagneticButton / ButtonLink / Button` in `@/components/ui/button`; `CodeLabel` in `@/components/ui/code-label`.
 - **No-JS safety**: initial hidden states use `data-reveal` (hidden only under `html.js`) or `.js-blocks`. A head script removes `html.js` if hydration hasn't happened in 4s. Never hide content with inline initial styles in SSR markup.
 - Animate `transform`/`opacity` only (filters sparingly). Reduced motion: no Lenis, no cursor, no scramble/parallax/pinning, simple fades. Reveals 0.6–1.2s, hovers 0.2–0.3s, dashboard 150–400ms.
-- Data: components never import `src/content/*` directly — they go through `src/lib/data/*` (server-only), which returns localized view models. Supabase replaces the bodies of those functions later.
+- Data: components never touch Supabase or `src/content/*` directly — they go through `src/lib/data/*` (server-only), which returns localized view models.
 - Page transitions: `PageTransition` intercepts same-origin link clicks in the capture phase; opt out with `data-no-transition`. Cursor labels: `data-cursor="view|drag|open"`.
 - Never put Tailwind `scale-*`/`translate-*` classes on elements GSAP also transforms (Tailwind v4 uses the separate `scale`/`translate` properties, which stack with GSAP's `transform`).
 
@@ -61,54 +61,63 @@ Work proceeds in the 9 phases of the brief — stop after each phase for approva
 ```
 messages/                    en.json, ar.json
 public/brand/                logo.svg
-src/proxy.ts                 next-intl (+ Supabase session & /dashboard guard from Phase 2)
+src/proxy.ts                 next-intl → Supabase session refresh (getClaims) → /dashboard guard
 src/app/[locale]/layout.tsx  root <html lang dir>, fonts, theme, intl
 src/app/[locale]/(site)/     public site (header, footer, Lenis, cursor, transitions)
 src/app/[locale]/(site)/playground  internal QA page for primitives (noindex)
 src/app/[locale]/(site)/{services,solutions,ai-automation,work,blog,about,contact}  inner pages
 src/app/{sitemap,robots}.ts   SEO; per-page metadata via `pageMetadata()` in src/lib/seo.ts
-src/content/                 typed placeholder rows (= future seed.sql)
-src/lib/data/content.ts      the only reader of src/content (server-only, localized view models)
+src/content/                 typed placeholder rows → `npx tsx scripts/generate-seed.ts` → supabase/seed.sql
+src/lib/data/content.ts      public reads (anon client, RLS = published only; draft mode reads via service role)
+src/lib/supabase/            env, browser, server (cookies), public (anon, no cookies), admin (service role + dbError), proxy, database.types.ts
+supabase/                    config.toml, migrations/, seed.sql, templates/ (auth emails)
 src/lib/schemas/lead.ts      contact-form zod schema shared by client + server action
 src/components/brand/        Logo, CMark, BracketGlyph, social icons
 src/components/motion/       animation primitives
 src/components/site/         Header, MobileMenu, Footer, ThemeToggle, LocaleSwitch, Cursor, PageTransition, WhatsAppButton
 src/components/ui/           Button, CodeLabel (+ restyled shadcn in Phase 6)
 src/components/providers/    ThemeProvider, SmoothScrollProvider, HydrationMark
-src/config/                  site.ts (placeholder contact data → site_settings later), brand.ts
+src/config/                  site.ts (fallback contact data; real values in site_settings), brand.ts
 src/hooks/                   useMedia / usePrefersReducedMotion / useFinePointer, useDirection
 src/lib/                     fonts, utils (cn), animation/
 ```
 
 ## Dashboard (`/{locale}/dashboard`)
 
-- **Temporary backend until Supabase:** `src/lib/dashboard/mock-db.ts` (in-memory, seeded, resets on restart) behind `src/lib/dashboard/repo.ts`. UI only calls repo functions / server actions — swap repo bodies for Supabase later.
-- **Temporary auth:** signed httpOnly cookie (`src/lib/auth/session.ts`), dev-only logins (`admin|editor|viewer@codex.agency`, password `DEV_LOGIN_PASSWORD` = `codex-dev`). Disabled in production.
-- Guards: `src/proxy.ts` (optimistic cookie check) → `requireUser()` in the dashboard layout → `authorize(role)` in EVERY server action (`src/app/[locale]/dashboard/actions.ts`) and API route.
+- **Backend = Supabase** (Postgres 17, RLS forced on every table). Repo functions in `src/lib/dashboard/repo.ts` use the cookie client (`supabaseServer()`) so RLS applies as the signed-in user; the service-role client (`supabaseAdmin()`) is only for things a user can't do (create a lead from the contact form, page_views, invites, ban/role metadata, draft previews).
+- **Auth:** Supabase Auth, invite-only (signups disabled). Password, magic link and reset emails use the `token_hash` flow via `/api/auth/confirm`. Role lives in `profiles.role` (mirrored to `app_metadata.role`); DB helpers `has_role()` / `auth_role()`; `guard_profile_update` blocks self-changes and removing the last admin. Local logins: `admin|editor|viewer@codex.agency` / `codex-dev` (seed only — never seed these into production).
+- DB triggers own the activity log (`log_activity`, `log_sign_in`) and the lead timeline — don't log from app code.
+- Guards: `src/proxy.ts` (optimistic claims check) → `requireUser()` in the dashboard layout → `authorize(role)` in EVERY server action (`src/app/[locale]/dashboard/actions.ts`) and API route.
 - Roles: viewer < editor < admin. `useCan()` only hides UI; the server always re-checks.
 - UI kit: `src/components/dashboard/ui/*` (DashButton, Card, Input, StatusBadge, Skeleton, EmptyState, overlays: Tip/Menu/Dialog/Sheet/ConfirmDialog, Segmented). Radix via `radix-ui`, cmdk, sonner, TanStack Table **v8**, dnd-kit, Recharts.
 - Filters/pagination/panels live in the URL (`useQueryState`). Tables paginate server-side.
 - Charts: one measure → one hue (`--link`); SVGs are forced `dir="ltr"` and mirrored via reversed axes (SVG text anchors break under RTL). No dual axes.
 - Relative dates: next-intl `now` + `timeZone: Asia/Riyadh` are set in `src/i18n/request.ts` to avoid hydration mismatches.
-- **Content is editable:** site content lives in the temporary store (seeded from `src/content/*`); `src/lib/data/content.ts` reads from it. Every content mutation calls `revalidatePublic()` (`src/lib/dashboard/revalidate.ts`).
+- **Content is editable:** site content lives in Supabase tables (`_en`/`_ar` columns); `src/lib/data/content.ts` reads it. Public pages are SSG; Every content mutation calls `revalidatePublic()` (`src/lib/dashboard/revalidate.ts`).
 - Content forms: shared zod schemas in `src/lib/schemas/content.ts` (form shape uses `{ en, ar }`, server maps to `_en/_ar`). Simple collections = one generic `CollectionManager` driven by `src/lib/dashboard/collections.ts` (server) + `collection-forms.tsx` (client). Projects/Posts have dedicated editors.
 - Rich text = Tiptap JSON (`RichDoc`), edited with `RichField` (RTL for Arabic), rendered on the site by `src/components/ui/rich-text.tsx` (React elements only, URL allow-list).
-- Media: uploads via `/api/dashboard/media` (magic-byte checked, no SVG, ≤ 8 MB), served by `/api/media/[id]` (TEMPORARY, in memory). Drafts preview via `/api/dashboard/preview` (Next draft mode).
-- **Site settings** (`db.settings`, dashboard → Settings) drive contact details, WhatsApp number, socials, default SEO, the announcement bar and maintenance mode. Server code reads `getSettings()`; client components use `useSiteContact()`. Never hardcode contact data.
-- Users & roles (admin): invite links (`/accept-invite?token=`), role changes and deactivation with guards (no self-changes, ≥ 1 active admin). Pages use `requireUser(locale, role)` (redirects); actions use `authorize(role)`.
-- Analytics: cookie-less tracking via `PageTracker` → `/api/track` (DNT/GPC respected, bots skipped, salted daily visitor hash, no IPs stored).
-- New lead "realtime": `LeadStreamProvider` polls every 15s (swap for Supabase Realtime later).
+- Media: `createUpload()` returns a signed Storage upload URL (bucket `media`, path `yyyy/mm/uuid.ext`, ≤ 8 MB, jpeg/png/webp/avif/gif — no SVG, enforced by the bucket); the browser PUTs the file, then `registerMedia()` verifies the object and inserts the `media` row. Drafts preview via `/api/dashboard/preview` (Next draft mode).
+- **Site settings** (`site_settings` single row id=1, dashboard → Settings; maintenance is admin-only, enforced by a DB trigger) drive contact details, WhatsApp number, socials, default SEO, the announcement bar and maintenance mode. Server code reads `getSettings()`; client components use `useSiteContact()`. Never hardcode contact data.
+- Users & roles (admin): invites via `auth.admin.generateLink` (emailed through Resend, or the link is shown when no `RESEND_API_KEY`), role changes and deactivation with guards (no self-changes, ≥ 1 active admin). Pages use `requireUser(locale, role)` (redirects); actions use `authorize(role)`.
+- Analytics: cookie-less tracking via `PageTracker` → `/api/track` → `page_views` (DNT/GPC respected, bots skipped, salted daily visitor hash, no IPs stored). Dashboards aggregate with the `analytics_daily` / `analytics_breakdown` RPCs.
+- New lead realtime: `LeadStreamProvider` subscribes to Supabase Realtime on `leads` (must `realtime.setAuth(access_token)` before subscribing, or RLS hides the rows); 60s poll as a safety net.
 
 ## Security & performance rules (Phase 9)
 
-- Rate limits (`src/lib/rate-limit.ts`, in-memory until Supabase): login 5/15 min per account + 20 per IP, magic-link/forgot 5/15 min, contact form 5/10 min per IP, tracking 120/min, uploads 60/10 min. Optional Cloudflare Turnstile on the contact form (env keys).
-- Session tokens are signed AND time-limited (7 days); `SESSION_SECRET` is mandatory in production.
+- Rate limits (`src/lib/rate-limit.ts` → `rate_limit_hit` DB function, fails open if the DB errors): login 5/15 min per account + 20 per IP, magic-link/forgot 5/15 min, contact form 5/10 min per IP, tracking 120/min, uploads 60/10 min. Optional Cloudflare Turnstile on the contact form (env keys).
+- `SUPABASE_SERVICE_ROLE_KEY` is server-only (never `NEXT_PUBLIC_`). Keys live in `.env.local`, never in chat or git.
 - Cookie-auth POST routes check `sameOrigin()`; redirects only accept same-site paths (no `//host`).
 - Security headers live in `next.config.ts` (`headers()`); dashboard is `no-store` + `noindex`.
 - **LCP rule:** above-the-fold content is never hidden. `trigger="mount"` reveals animate visible text (move/blur/scramble), only `trigger="scroll"` content uses `data-reveal`. SplitText runs lazily when a heading nears the viewport.
 - Keep `motion` out of always-loaded site components (use CSS or `useSpringPointer`); heavy below-the-fold sections are `next/dynamic`.
 - Fonts: variable files where possible, only weights actually used.
 - QA builds: `NEXT_DIST_DIR=.next-qa npx next build` so they never clash with a running `next dev`.
+
+## Supabase workflow
+
+- Local: `npx supabase start` (Studio :54323, Mailpit :54324). New schema change = new file in `supabase/migrations/` → `npx supabase migration up --local` → `npx supabase gen types typescript --local > src/lib/supabase/database.types.ts`.
+- Reset with fresh seed: `npx supabase db reset` (regenerate `seed.sql` first if `src/content` changed).
+- Hosted project ref `jdflejwkeijyswidrlog` (eu-west-3): `npx supabase link --project-ref …` → `npx supabase db push`. Do not run the seed there; configure signups off, Site URL / redirect URLs, email templates and SMTP in the hosted dashboard.
 
 ## Conventions
 

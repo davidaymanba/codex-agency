@@ -11,9 +11,8 @@ export type Profile = {
   role: Role;
   avatar_url: string | null;
   active: boolean;
-  /** Set while an invitation is pending (no password yet). */
+  /** Set while an invitation is pending (cleared on first sign-in). */
   invited_at: string | null;
-  invite_token: string | null;
   last_sign_in_at: string | null;
   language: "en" | "ar";
   theme: "system" | "light" | "dark";
@@ -53,7 +52,7 @@ export type Lead = {
   budget: LeadBudget;
   message: string;
   locale: "en" | "ar";
-  country: "EG" | "SA" | "AE" | "KW" | "OM";
+  country: string | null;
   source_page: string | null;
   utm: Record<string, string> | null;
   status: LeadStatus;

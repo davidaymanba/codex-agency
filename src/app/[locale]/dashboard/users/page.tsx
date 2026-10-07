@@ -3,7 +3,7 @@ import { UsersTable } from "@/components/dashboard/admin/users-table";
 import { DashPageHeader } from "@/components/dashboard/content/page-header";
 import type { Locale } from "@/i18n/routing";
 import { requireUser } from "@/lib/auth/session";
-import { db } from "@/lib/dashboard/mock-db";
+import { listAllProfiles } from "@/lib/dashboard/repo";
 
 export const metadata = { title: "Users & roles" };
 
@@ -12,7 +12,7 @@ export default async function UsersPage({ params }: PageProps<"/[locale]/dashboa
   setRequestLocale(locale);
   await requireUser(locale, "admin");
   const t = await getTranslations("dash.users");
-  const users = db.profiles.map(
+  const users = (await listAllProfiles()).map(
     ({ id, email, full_name, role, active, invited_at, last_sign_in_at }) => ({
       id,
       email,

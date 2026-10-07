@@ -799,7 +799,7 @@
       "inviteBody": "They'll receive a link to set their name and password.",
       "inviteSent": "Invitation created",
       "inviteLink": "Invitation link",
-      "inviteLinkHint": "Email delivery arrives with the backend phase — share this link manually for now.",
+      "inviteLinkHint": "Email delivery isn't configured (RESEND_API_KEY) — share this one-time link.",
       "copyLink": "Copy link",
       "name": "Name",
       "email": "Email",
@@ -829,7 +829,8 @@
         "viewer": "Read-only access."
       },
       "deactivateTitle": "Deactivate {name}?",
-      "deactivateBody": "They'll be signed out and can't sign in until reactivated."
+      "deactivateBody": "They'll be signed out and can't sign in until reactivated.",
+      "inviteEmailed": "Invitation email sent. They'll set their name and password from the link."
     },
     "activityLog": {
       "title": "Activity log",

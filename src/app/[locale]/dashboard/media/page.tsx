@@ -3,7 +3,7 @@ import { DashPageHeader } from "@/components/dashboard/content/page-header";
 import { MediaLibrary } from "@/components/dashboard/media/media-library";
 import type { Locale } from "@/i18n/routing";
 import { requireUser } from "@/lib/auth/session";
-import { db } from "@/lib/dashboard/mock-db";
+import { allMedia } from "@/lib/dashboard/repo";
 
 export const metadata = { title: "Media library" };
 
@@ -12,7 +12,7 @@ export default async function MediaPage({ params }: PageProps<"/[locale]/dashboa
   setRequestLocale(locale);
   await requireUser(locale);
   const t = await getTranslations("dash.media");
-  const items = db.media.map((m) => ({
+  const items = (await allMedia()).map((m) => ({
     id: m.id,
     url: m.url,
     filename: m.filename,

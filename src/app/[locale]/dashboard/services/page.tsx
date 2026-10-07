@@ -24,7 +24,7 @@ export default async function ServicesAdminPage({
         subtitle={t("content.servicesSub")}
         actions={<ServicesTabs value={tab} />}
       />
-      <CollectionManager key={tab} collection={tab} items={listCollection(tab)} />
+      <CollectionManager key={tab} collection={tab} items={await listCollection(tab)} />
     </>
   );
 }

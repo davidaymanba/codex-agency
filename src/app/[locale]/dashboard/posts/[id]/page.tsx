@@ -4,7 +4,7 @@ import { PostEditor } from "@/components/dashboard/posts/post-editor";
 import type { Locale } from "@/i18n/routing";
 import { requireUser } from "@/lib/auth/session";
 import { postToForm } from "@/lib/dashboard/collections";
-import { db } from "@/lib/dashboard/mock-db";
+import { postById } from "@/lib/dashboard/repo";
 import { emptyDoc } from "@/lib/rich";
 
 export const metadata = { title: "Edit post" };
@@ -37,7 +37,7 @@ export default async function PostEditPage({
       />
     );
   }
-  const row = db.posts.find((p) => p.id === id);
+  const row = await postById(id);
   if (!row) notFound();
   return <PostEditor key={id} id={id} initial={postToForm(row)} />;
 }

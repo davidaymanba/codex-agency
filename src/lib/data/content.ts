@@ -1,20 +1,55 @@
 import "server-only";
 import { draftMode } from "next/headers";
+import { cache } from "react";
 import * as simpleIcons from "simple-icons";
-import type { PostRow, ProjectRow, RichDoc, ServiceRow } from "@/content/types";
+import type {
+  PostRow,
+  ProjectCategoryRow,
+  ProjectRow,
+  RichDoc,
+  ServiceRow,
+  SolutionRow,
+  StatRow,
+  TeamMemberRow,
+  TechLogoRow,
+  TestimonialRow,
+} from "@/content/types";
 import type { Locale } from "@/i18n/routing";
-import { db } from "@/lib/dashboard/mock-db";
+import type { SiteSettings } from "@/lib/dashboard/types";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabasePublic } from "@/lib/supabase/public";
 import { pick, pickText } from "./localize";
 
 /**
- * Public content queries. They read the content tables of the TEMPORARY store
- * (`src/lib/dashboard/mock-db.ts`, seeded from `src/content/*`) — so dashboard edits show up
- * on the site. In the backend phase each body becomes a Supabase query with the SAME return
- * types, so no component changes.
+ * Public content queries (Supabase, anon client → RLS returns published content only).
+ * Each table is loaded once per request (React `cache`) and mapped to localized view models.
+ * Public pages are static and re-rendered on demand when the dashboard saves (revalidatePublic).
  */
 
-const byOrder = <T extends { sort_order: number; published: boolean }>(rows: T[]) =>
-  rows.filter((r) => r.published).sort((a, b) => a.sort_order - b.sort_order);
+async function rows<T>(table: string, order = "sort_order"): Promise<T[]> {
+  const { data, error } = await supabasePublic().from(table as never).select("*").order(order as never);
+  if (error) throw new Error(`[content] ${table}: ${error.message}`);
+  return (data ?? []) as T[];
+}
+
+const db = {
+  services: cache(() => rows<ServiceRow>("services")),
+  solutions: cache(() => rows<SolutionRow>("solutions")),
+  stats: cache(() => rows<StatRow>("stats")),
+  testimonials: cache(() => rows<TestimonialRow>("testimonials")),
+  techLogos: cache(() => rows<TechLogoRow>("tech_logos")),
+  team: cache(() => rows<TeamMemberRow>("team_members")),
+  projectCategories: cache(() => rows<ProjectCategoryRow>("project_categories")),
+  projects: cache(() => rows<ProjectRow>("projects")),
+  posts: cache(() => rows<PostRow>("posts", "published_at")),
+  settings: cache(async () => {
+    const { data } = await supabasePublic().from("site_settings").select("*").eq("id", 1).maybeSingle();
+    return data as unknown as SiteSettings | null;
+  }),
+};
+
+const byOrder = <T extends { sort_order: number; published: boolean }>(list: T[]) =>
+  list.filter((r) => r.published).sort((a, b) => a.sort_order - b.sort_order);
 
 /** Resolve a simple-icons export name (e.g. "siShopify") to its SVG path, server-side only. */
 function brandPath(name: string | null): string | null {
@@ -35,7 +70,7 @@ export type ServiceVM = {
 };
 
 export async function getServices(locale: Locale): Promise<ServiceVM[]> {
-  return byOrder(db.services).map((s, i) => ({
+  return byOrder(await db.services()).map((s, i) => ({
     slug: s.slug,
     index: String(i + 1).padStart(2, "0"),
     title: pick(s, "title", locale),
@@ -51,7 +86,7 @@ export async function getService(locale: Locale, slug: string): Promise<ServiceV
   return (await getServices(locale)).find((s) => s.slug === slug) ?? null;
 }
 
-export const getServiceSlugs = async () => byOrder(db.services).map((s) => s.slug);
+export const getServiceSlugs = async () => byOrder(await db.services()).map((s) => s.slug);
 
 export type SolutionVM = {
   slug: string;
@@ -66,7 +101,7 @@ export type SolutionVM = {
 };
 
 export async function getSolutions(locale: Locale): Promise<SolutionVM[]> {
-  return byOrder(db.solutions).map((s) => {
+  return byOrder(await db.solutions()).map((s) => {
     const isBrand = s.icon.startsWith("si:");
     return {
       slug: s.slug,
@@ -83,7 +118,7 @@ export async function getSolutions(locale: Locale): Promise<SolutionVM[]> {
 export type TechLogoVM = { name: string; path: string | null };
 
 export async function getTechLogos(): Promise<{ row1: TechLogoVM[]; row2: TechLogoVM[] }> {
-  const rows = byOrder(db.techLogos).map((t) => ({
+  const rows = byOrder(await db.techLogos()).map((t) => ({
     name: t.name,
     path: brandPath(t.icon),
     row: t.marquee_row,
@@ -104,7 +139,7 @@ export type TeamVM = {
 };
 
 export async function getTeams(locale: Locale): Promise<TeamVM[]> {
-  return byOrder(db.services).map((s) => ({
+  return byOrder(await db.services()).map((s) => ({
     slug: s.slug,
     name: pick(s, "team_name", locale),
     description: pick(s, "team_description", locale),
@@ -117,7 +152,7 @@ export async function getTeams(locale: Locale): Promise<TeamVM[]> {
 export type StatVM = { key: string; value: number; suffix: string; label: string };
 
 export async function getStats(locale: Locale): Promise<StatVM[]> {
-  return byOrder(db.stats).map((s) => ({
+  return byOrder(await db.stats()).map((s) => ({
     key: s.key,
     value: s.value,
     suffix: s.suffix,
@@ -137,7 +172,7 @@ export type TestimonialVM = {
 };
 
 export async function getTestimonials(locale: Locale): Promise<TestimonialVM[]> {
-  return byOrder(db.testimonials).map((t) => ({
+  return byOrder(await db.testimonials()).map((t) => ({
     id: t.id,
     quote: pick(t, "quote", locale),
     name: t.author_name,
@@ -165,7 +200,7 @@ export type ProjectVM = {
 };
 
 export async function getProjectCategories(locale: Locale): Promise<ProjectCategoryVM[]> {
-  return [...db.projectCategories]
+  return [...(await db.projectCategories())]
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((c) => ({ slug: c.slug, name: pick(c, "name", locale) }));
 }
@@ -184,8 +219,8 @@ export type ProjectDetailVM = ProjectVM & {
   draft: boolean;
 };
 
-const published = () =>
-  db.projects.filter((p) => p.status === "published").sort((a, b) => a.sort_order - b.sort_order);
+const published = async () =>
+  (await db.projects()).filter((p) => p.status === "published").sort((a, b) => a.sort_order - b.sort_order);
 
 async function toProjectVM(p: ProjectRow, locale: Locale): Promise<ProjectVM> {
   const cats = await getProjectCategories(locale);
@@ -204,12 +239,12 @@ async function toProjectVM(p: ProjectRow, locale: Locale): Promise<ProjectVM> {
 }
 
 export async function getProjects(locale: Locale): Promise<ProjectVM[]> {
-  return Promise.all(published().map((p) => toProjectVM(p, locale)));
+  return Promise.all((await published()).map((p) => toProjectVM(p, locale)));
 }
 
 export async function getFeaturedProjects(locale: Locale, limit = 6): Promise<ProjectVM[]> {
   return Promise.all(
-    published()
+    (await published())
       .filter((p) => p.featured)
       .slice(0, limit)
       .map((p) => toProjectVM(p, locale)),
@@ -226,15 +261,18 @@ const previewing = async () => {
 };
 
 export async function getProject(locale: Locale, slug: string): Promise<ProjectDetailVM | null> {
-  const list = published();
+  const list = await published();
   let i = list.findIndex((p) => p.slug === slug);
   let p = list[i];
   if (!p && (await previewing())) {
-    p = db.projects.find((x) => x.slug === slug)!;
+    // Draft preview (signed-in staff only): read the unpublished row with the service role.
+    const { data } = await supabaseAdmin().from("projects").select("*").eq("slug", slug).maybeSingle();
+    p = data as unknown as ProjectRow;
     i = 0;
   }
   if (!p) return null;
   const nextRow = list[(i + 1) % list.length];
+  const svcRows = await db.services();
   return {
     content: (locale === "ar" ? p.content_ar : p.content_en) ?? null,
     gallery: p.gallery ?? [],
@@ -246,7 +284,7 @@ export async function getProject(locale: Locale, slug: string): Promise<ProjectD
     approach: pick(p, "approach", locale),
     results: p.results.map((r) => ({ value: r.value, label: pickText(r.label, locale) })),
     services: p.services.map((slug) => {
-      const svc = db.services.find((s) => s.slug === slug)!;
+      const svc = svcRows.find((s) => s.slug === slug)!;
       return { slug, title: pick(svc, "title", locale) };
     }),
     liveUrl: p.live_url,
@@ -257,7 +295,7 @@ export async function getProject(locale: Locale, slug: string): Promise<ProjectD
   };
 }
 
-export const getProjectSlugs = async () => published().map((p) => p.slug);
+export const getProjectSlugs = async () => (await published()).map((p) => p.slug);
 
 /* ---------------------------------------------------------------- Posts */
 
@@ -281,13 +319,9 @@ export type PostDetailVM = PostVM & {
 };
 
 /** Published, or scheduled with a publish date that has passed. */
-const livePosts = () =>
-  db.posts
-    .filter(
-      (p) =>
-        (p.status === "published" || p.status === "scheduled") &&
-        new Date(p.published_at) <= new Date(),
-    )
+const livePosts = async () =>
+  (await db.posts())
+    .filter((p) => (p.status === "published" || p.status === "scheduled") && new Date(p.published_at) <= new Date())
     .sort((a, b) => b.published_at.localeCompare(a.published_at));
 
 function toPostVM(p: PostRow, locale: Locale): PostVM {
@@ -305,23 +339,27 @@ function toPostVM(p: PostRow, locale: Locale): PostVM {
 }
 
 export async function getPosts(locale: Locale): Promise<PostVM[]> {
-  return livePosts().map((p) => toPostVM(p, locale));
+  return (await livePosts()).map((p) => toPostVM(p, locale));
 }
 
 export async function getPost(locale: Locale, slug: string): Promise<PostDetailVM | null> {
-  let p = livePosts().find((x) => x.slug === slug);
-  if (!p && (await previewing())) p = db.posts.find((x) => x.slug === slug);
+  const live = await livePosts();
+  let p = live.find((x) => x.slug === slug);
+  if (!p && (await previewing())) {
+    const { data } = await supabaseAdmin().from("posts").select("*").eq("slug", slug).maybeSingle();
+    p = (data as unknown as PostRow) ?? undefined;
+  }
   if (!p) return null;
   return {
     ...toPostVM(p, locale),
     content: locale === "ar" ? p.content_ar : p.content_en,
     seoTitle: pick(p, "seo_title", locale) || null,
     seoDescription: pick(p, "seo_description", locale) || null,
-    draft: !livePosts().includes(p),
+    draft: !live.includes(p),
   };
 }
 
-export const getPostSlugs = async () => livePosts().map((p) => p.slug);
+export const getPostSlugs = async () => (await livePosts()).map((p) => p.slug);
 
 /* ---------------------------------------------------------------- Team members */
 
@@ -334,7 +372,7 @@ export type TeamMemberVM = {
 };
 
 export async function getTeamMembers(locale: Locale): Promise<TeamMemberVM[]> {
-  return byOrder(db.team).map((m) => ({
+  return byOrder(await db.team()).map((m) => ({
     id: m.id,
     name: pick(m, "name", locale),
     role: pick(m, "role", locale),
@@ -358,7 +396,7 @@ export type PublicSettings = {
 };
 
 export async function getSettings(locale: Locale): Promise<PublicSettings> {
-  const s = db.settings;
+  const s = (await db.settings()) ?? FALLBACK_SETTINGS;
   return {
     email: s.email,
     phone: s.phone,
@@ -374,3 +412,22 @@ export async function getSettings(locale: Locale): Promise<PublicSettings> {
     maintenance: s.maintenance,
   };
 }
+
+const FALLBACK_SETTINGS: SiteSettings = {
+  email: "",
+  phone: "",
+  whatsapp: "",
+  address_en: "",
+  address_ar: "",
+  socials: { instagram: "", linkedin: "", behance: "", x: "", tiktok: "" },
+  seo_title_en: "",
+  seo_title_ar: "",
+  seo_description_en: "",
+  seo_description_ar: "",
+  announcement_enabled: false,
+  announcement_en: "",
+  announcement_ar: "",
+  announcement_href: "",
+  maintenance: false,
+  updated_at: "",
+};

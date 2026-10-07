@@ -1,21 +1,19 @@
 "use server";
 
+import { after } from "next/server";
+import { headers } from "next/headers";
 import { createLead } from "@/lib/dashboard/repo";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { notifyNewLead } from "@/lib/email/notify";
+import { clientIp, rateLimit, requestOrigin } from "@/lib/rate-limit";
 import { leadMetaSchema, leadSchema } from "@/lib/schemas/lead";
 import { verifyTurnstile } from "@/lib/turnstile";
 
-export type LeadResult =
-  { ok: true } | { ok: false; error: "invalid" | "server" | "rate_limited" | "captcha" };
+export type LeadResult = { ok: true } | { ok: false; error: "invalid" | "server" | "rate_limited" | "captcha" };
 
 /**
- * Receives a contact-form submission. Re-validates on the server with the same schema.
- *
- * Today the lead goes into the TEMPORARY in-memory store, so it shows up in the dashboard.
- * BACKEND PHASE (Supabase) replaces that with, in this order:
- *   1. rate limit by IP (Postgres function)        2. optional Cloudflare Turnstile check
- *   3. insert into `leads` with the service-role client (no anon insert policy)
- *   4. Resend notification to the team             5. Realtime toast in the dashboard
+ * Contact form → lead. Order: validate (same zod schema as the form) → honeypot → rate limit
+ * (Postgres) → optional Turnstile → insert with the service role (no anon insert policy) →
+ * email the team after the response is sent → Realtime toast in the dashboard (DB publication).
  */
 export async function submitLead(input: unknown, meta: unknown): Promise<LeadResult> {
   const data = leadSchema.safeParse(input);
@@ -26,14 +24,17 @@ export async function submitLead(input: unknown, meta: unknown): Promise<LeadRes
   if (data.data.website) return { ok: true };
 
   const ip = await clientIp();
-  if (!rateLimit(`lead:${ip}`, 5, 10 * 60_000).ok) return { ok: false, error: "rate_limited" };
-  if (!(await verifyTurnstile(info.data.turnstileToken, ip)))
-    return { ok: false, error: "captcha" };
+  if (!(await rateLimit(`lead:${ip}`, 5, 10 * 60_000)).ok) return { ok: false, error: "rate_limited" };
+  if (!(await verifyTurnstile(info.data.turnstileToken, ip))) return { ok: false, error: "captcha" };
 
   try {
-    await createLead(data.data, info.data);
+    const country = (await headers()).get("x-vercel-ip-country")?.slice(0, 2).toUpperCase() ?? null;
+    const lead = await createLead(data.data, { ...info.data, country });
+    const origin = await requestOrigin();
+    after(() => notifyNewLead(lead, origin));
     return { ok: true };
-  } catch {
+  } catch (e) {
+    console.error("[submitLead]", e);
     return { ok: false, error: "server" };
   }
 }

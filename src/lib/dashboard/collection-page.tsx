@@ -21,7 +21,7 @@ export async function CollectionPage({
   return (
     <>
       <DashPageHeader title={t(`sections.${collection}`)} subtitle={t(`content.${sub}`)} />
-      <CollectionManager collection={collection} items={listCollection(collection)} />
+      <CollectionManager collection={collection} items={await listCollection(collection)} />
     </>
   );
 }

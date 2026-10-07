@@ -4,7 +4,7 @@ import { ProjectEditor } from "@/components/dashboard/projects/project-editor";
 import type { Locale } from "@/i18n/routing";
 import { requireUser } from "@/lib/auth/session";
 import { projectToForm } from "@/lib/dashboard/collections";
-import { db } from "@/lib/dashboard/mock-db";
+import { projectById } from "@/lib/dashboard/repo";
 
 export const metadata = { title: "Edit project" };
 
@@ -39,7 +39,7 @@ export default async function ProjectEditPage({
   setRequestLocale(locale as Locale);
   await requireUser(locale);
   if (id === "new") return <ProjectEditor id={null} initial={EMPTY} />;
-  const row = db.projects.find((p) => p.id === id);
+  const row = await projectById(id);
   if (!row) notFound();
   return <ProjectEditor key={id} id={id} initial={projectToForm(row)} />;
 }

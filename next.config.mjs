@@ -1,4 +1,3 @@
-import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
@@ -8,7 +7,7 @@ function supabaseImages() {
     const u = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
     return [
       {
-        protocol: u.protocol.replace(":", "") as "http" | "https",
+        protocol: u.protocol.replace(":", ""),
         hostname: u.hostname,
         port: u.port,
         pathname: "/storage/v1/object/public/**",
@@ -19,7 +18,8 @@ function supabaseImages() {
   }
 }
 
-const nextConfig: NextConfig = {
+/** @type {import("next").NextConfig} */
+const nextConfig = {
   // Separate output folder for QA builds so they never clash with a running `next dev`.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   turbopack: { root: import.meta.dirname },

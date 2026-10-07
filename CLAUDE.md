@@ -10,6 +10,7 @@ Work proceeds in the 9 phases of the brief — stop after each phase for approva
 
 - **Next.js 16** (not 15): `middleware.ts` is now `src/proxy.ts`; `revalidateTag(tag, profile)` takes 2 args. Read `node_modules/next/dist/docs/` before using unfamiliar APIs.
 - **npm** is the package manager.
+- **Hosting = Hostinger Node.js app** (domain `codexai.systems`). Its build server has an old glibc, so native SWC fails and Next falls back to WASM: that's why the config is plain JS (`next.config.mjs`, no TS syntax) and `npm run build` uses `--webpack` (Turbopack needs native bindings). `next dev` still uses Turbopack. Reproduce locally with `NEXT_TEST_WASM=1 npx next build --webpack`.
 - Default locale **en** (`/` → `/en`, browser `Accept-Language` may pick `/ar`). Markets: EG, SA, AE, KW, OM → Arabic copy is light Modern Standard Arabic, never dialect. Western digits everywhere.
 - Supabase runs **locally** (Docker + CLI) first, then is pushed to a cloud project.
 - No anon INSERT policies: `leads` / `page_views` are written by server code (validation, honeypot, rate limit, Turnstile) with the service role.
@@ -107,7 +108,7 @@ src/lib/                     fonts, utils (cn), animation/
 - Rate limits (`src/lib/rate-limit.ts` → `rate_limit_hit` DB function, fails open if the DB errors): login 5/15 min per account + 20 per IP, magic-link/forgot 5/15 min, contact form 5/10 min per IP, tracking 120/min, uploads 60/10 min. Optional Cloudflare Turnstile on the contact form (env keys).
 - `SUPABASE_SERVICE_ROLE_KEY` is server-only (never `NEXT_PUBLIC_`). Keys live in `.env.local`, never in chat or git.
 - Cookie-auth POST routes check `sameOrigin()`; redirects only accept same-site paths (no `//host`).
-- Security headers live in `next.config.ts` (`headers()`); dashboard is `no-store` + `noindex`.
+- Security headers live in `next.config.mjs` (`headers()`); dashboard is `no-store` + `noindex`.
 - **LCP rule:** above-the-fold content is never hidden. `trigger="mount"` reveals animate visible text (move/blur/scramble), only `trigger="scroll"` content uses `data-reveal`. SplitText runs lazily when a heading nears the viewport.
 - Keep `motion` out of always-loaded site components (use CSS or `useSpringPointer`); heavy below-the-fold sections are `next/dynamic`.
 - Fonts: variable files where possible, only weights actually used.

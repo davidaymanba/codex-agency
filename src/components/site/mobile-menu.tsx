@@ -81,7 +81,13 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
       );
     } else if (tl.current && tl.current.progress() > 0) {
       unlock();
-      tl.current.timeScale(1.6).reverse();
+      // Hide explicitly once reversed: the zero-duration visibility tween at the start of the
+      // timeline doesn't reliably re-render backwards, which left an invisible full-screen
+      // layer swallowing every tap (header, logo, menu button) after navigating from the menu.
+      tl.current
+        .timeScale(1.6)
+        .eventCallback("onReverseComplete", () => gsap.set(root.current, { visibility: "hidden" }))
+        .reverse();
       (opener.current as HTMLElement | null)?.focus?.();
     }
     // lock/unlock are stable for a given Lenis instance
@@ -161,6 +167,8 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
               <li key={item.key} className="overflow-hidden">
                 <Link
                   href={item.href}
+                  // Same page: no navigation happens, so close the menu ourselves.
+                  onClick={() => item.href === pathname && onClose()}
                   data-item
                   className="group flex items-baseline gap-4 py-1 text-headline font-medium text-fg transition-colors hover:text-link"
                 >

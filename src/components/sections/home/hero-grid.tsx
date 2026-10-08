@@ -63,7 +63,7 @@ export function HeroGrid({ cell = 64 }: { cell?: number }) {
         ctx.globalAlpha = h * (h > 0.6 ? 0.55 : 0.4);
         ctx.fillStyle = h > 0.6 ? colors.high : colors.low;
         ctx.fillRect(x + 1, y + 1, size - 1, size - 1);
-        heat[i] = h * 0.93;
+        heat[i] = h * (fine ? 0.93 : 0.88); // touch sparks fade faster → loop sleeps sooner
       }
       ctx.globalAlpha = 1;
       if (alive) raf = requestAnimationFrame(draw);
@@ -107,18 +107,27 @@ export function HeroGrid({ cell = 64 }: { cell?: number }) {
     const mo = new MutationObserver(readColors);
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 
+    // Only animate while the hero is on screen — off-screen redraws compete with scrolling.
+    let visible = true;
+    const io = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+    });
+    io.observe(canvas);
+
     let twinkle: ReturnType<typeof setInterval> | undefined;
     if (fine) {
       window.addEventListener("pointermove", onMove, { passive: true });
     } else {
+      // Touch: a sparse twinkle, slow enough that the loop sleeps between sparks.
       twinkle = setInterval(() => {
-        if (document.hidden) return;
+        if (document.hidden || !visible) return;
         light(Math.random() * cols * size, Math.random() * rows * size, 0.6, 0.9);
-      }, 700);
+      }, 1400);
     }
 
     return () => {
       cancelAnimationFrame(raf);
+      io.disconnect();
       ro.disconnect();
       mo.disconnect();
       clearInterval(twinkle);

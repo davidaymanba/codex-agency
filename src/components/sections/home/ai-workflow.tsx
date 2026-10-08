@@ -4,6 +4,7 @@ import { Headset, ListChecks, PackageCheck, FileBarChart } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Reveal } from "@/components/motion/reveal";
+import { useMedia } from "@/hooks/use-media";
 import { cn } from "@/lib/utils";
 import { AiWorkflowCanvas, USE_CASES, type NodeId, type UseCaseKey } from "./ai-workflow-canvas";
 
@@ -22,10 +23,12 @@ export function AiWorkflow() {
   const [hoverCase, setHoverCase] = useState<UseCaseKey | null>(null);
   const activeCase = hoverCase ?? pinned;
   const highlight = hoverNodes ?? (activeCase ? USE_CASES[activeCase] : null);
+  // Server renders the desktop wording; touch devices switch to "tap" after hydration.
+  const fine = useMedia("(hover: hover) and (pointer: fine)", true);
 
   return (
     <>
-      <p className="mb-4 label-mono text-indigo-200">{t("aiHint")}</p>
+      <p className="mb-4 label-mono text-indigo-200">{t(fine ? "aiHint" : "aiHintTouch")}</p>
       <div className="relative rounded-[var(--radius-brand)] border border-indigo-700/60 bg-navy-950 bg-grid p-4 [--grid-size:40px] md:p-8">
         <AiWorkflowCanvas highlight={highlight} onHover={setHoverNodes} />
       </div>
@@ -40,9 +43,11 @@ export function AiWorkflow() {
                 type="button"
                 aria-pressed={pinned === key}
                 onClick={() => setPinned((p) => (p === key ? null : key))}
-                onMouseEnter={() => setHoverCase(key)}
-                onMouseLeave={() => setHoverCase(null)}
-                onFocus={() => setHoverCase(key)}
+                // Mouse/keyboard preview only: on touch a tap's emulated hover/focus would stick,
+                // so taps just toggle the pinned case.
+                onPointerEnter={(e) => e.pointerType === "mouse" && setHoverCase(key)}
+                onPointerLeave={(e) => e.pointerType === "mouse" && setHoverCase(null)}
+                onFocus={(e) => e.currentTarget.matches(":focus-visible") && setHoverCase(key)}
                 onBlur={() => setHoverCase(null)}
                 className={cn(
                   "group flex h-full w-full flex-col items-start gap-4 rounded-[var(--radius-brand)] border p-5 text-start transition-colors duration-300",

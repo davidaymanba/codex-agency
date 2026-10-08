@@ -12,7 +12,7 @@ type ParallaxLayerProps = {
   className?: string;
 };
 
-/** Scroll-scrubbed vertical drift. Halved on small screens, off under reduced motion. */
+/** Scroll-scrubbed vertical drift (mouse/trackpad devices only). Halved on small screens, off under reduced motion. */
 export function ParallaxLayer({ children, speed = 0.2, className }: ParallaxLayerProps) {
   const ref = useRef<HTMLDivElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -21,8 +21,10 @@ export function ParallaxLayer({ children, speed = 0.2, className }: ParallaxLaye
     () => {
       if (reduced || !ref.current) return;
       const mm = gsap.matchMedia();
-      mm.add({ desktop: "(min-width: 768px)", mobile: "(max-width: 767px)" }, (ctx) => {
-        const amount = speed * (ctx.conditions?.mobile ? 50 : 100);
+      // Touch screens scroll on the compositor while scrubbed transforms update on the main
+      // thread, so the layer visibly lags and shakes — keep parallax to mouse/trackpad devices.
+      mm.add("(hover: hover) and (pointer: fine)", () => {
+        const amount = speed * (window.innerWidth < 768 ? 50 : 100);
         gsap.fromTo(
           ref.current,
           { y: amount },

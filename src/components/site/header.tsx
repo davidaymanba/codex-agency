@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { BracketFrame } from "@/components/motion/bracket-frame";
+import { useSmoothScroll } from "@/components/providers/smooth-scroll";
 import { MagneticButton } from "@/components/ui/button";
 import { mainNav } from "@/config/site";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -24,6 +25,7 @@ export function Header({ announcement }: { announcement?: { text: string; href: 
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const lastY = useRef(0);
+  const { scrollTo } = useSmoothScroll();
 
   useEffect(() => {
     const onScroll = () => {
@@ -37,6 +39,19 @@ export function Header({ announcement }: { announcement?: { text: string; href: 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // A new page always starts with the header visible.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHidden(false);
+  }, [pathname]);
+
+  // Logo on the home page = back to top (a same-URL link would otherwise do nothing).
+  const onLogoClick = (e: React.MouseEvent) => {
+    if (pathname !== "/") return;
+    e.preventDefault();
+    scrollTo(0);
+  };
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -59,6 +74,7 @@ export function Header({ announcement }: { announcement?: { text: string; href: 
         <div className="container-x flex h-[4.5rem] items-center justify-between gap-6">
           <Link
             href="/"
+            onClick={onLogoClick}
             aria-label="CODEX — home"
             className="shrink-0 text-primary dark:text-white"
           >

@@ -1,7 +1,15 @@
 "use client";
 
 import Lenis from "lenis";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { usePathname } from "@/i18n/navigation";
 import { gsap, ScrollTrigger } from "@/lib/animation/gsap";
 import { useFinePointer, usePrefersReducedMotion } from "@/hooks/use-media";
@@ -57,11 +65,37 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
   }, [reduced, fine]);
 
   // New route → jump to top and re-measure every trigger once the new DOM has painted.
+  // PageTransition pushes with `scroll: false`, so without Lenis (touch devices) we must
+  // reset native scroll ourselves — otherwise the new page opens at the old offset.
+  const firstRoute = useRef(true);
   useEffect(() => {
-    lenis?.scrollTo(0, { immediate: true, force: true });
+    if (lenis) lenis.scrollTo(0, { immediate: true, force: true });
+    else if (!firstRoute.current && !window.location.hash) window.scrollTo(0, 0);
+    firstRoute.current = false;
     const id = requestAnimationFrame(() => ScrollTrigger.refresh());
     return () => cancelAnimationFrame(id);
   }, [pathname, lenis]);
+
+  // Trigger positions are measured once; anything that changes the page height afterwards
+  // (web fonts, images, lazy sections on a slow phone) leaves reveals firing late or never.
+  // Phones also skip ScrollTrigger's resize refresh (`ignoreMobileResize`), so re-measure
+  // whenever the document height actually changes.
+  useEffect(() => {
+    let height = document.documentElement.scrollHeight;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const ro = new ResizeObserver(() => {
+      const next = document.documentElement.scrollHeight;
+      if (Math.abs(next - height) < 2) return;
+      height = next;
+      clearTimeout(timer);
+      timer = setTimeout(() => ScrollTrigger.refresh(), 200);
+    });
+    ro.observe(document.body);
+    return () => {
+      ro.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
 
   const api = useMemo<ScrollApi>(
     () => ({

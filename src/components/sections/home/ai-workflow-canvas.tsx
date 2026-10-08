@@ -6,13 +6,17 @@ import { useMemo, useRef, useState, type ComponentType, type SVGProps } from "re
 import { WhatsAppIcon } from "@/components/brand/social-icons";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/animation/gsap";
 import { useDirection } from "@/hooks/use-direction";
-import { usePrefersReducedMotion } from "@/hooks/use-media";
+import { useMedia, usePrefersReducedMotion } from "@/hooks/use-media";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ layout */
 
 const W = 1000;
 const H = 470;
+// Phones: a narrow, top-to-bottom version of the same graph that fits the screen width
+// (no sideways swiping inside a vertically scrolling page).
+const CW = 340;
+const CH = 532;
 
 export type NodeId =
   "trigger" | "agent" | "model" | "memory" | "tools" | "router" | "crm" | "reply" | "email";
@@ -64,19 +68,82 @@ export const USE_CASES = {
 
 export type UseCaseKey = keyof typeof USE_CASES;
 
-function useLayout(rtl: boolean) {
+// Compact layout (LTR, CW×CH): main flow runs down the start column, sub-nodes branch off
+// the agent to the end side, outputs hang off the router like a tree.
+const COMPACT: Record<NodeId, Pick<NodeDef, "x" | "y" | "w" | "h">> = {
+  trigger: { x: 0, y: 0, w: 200, h: 56 },
+  agent: { x: 0, y: 100, w: 200, h: 76 },
+  model: { x: 222, y: 72, w: 118, h: 40 },
+  memory: { x: 222, y: 118, w: 118, h: 40 },
+  tools: { x: 222, y: 164, w: 118, h: 40 },
+  router: { x: 25, y: 232, w: 150, h: 56 },
+  crm: { x: 72, y: 336, w: 268, h: 52 },
+  reply: { x: 72, y: 404, w: 268, h: 52 },
+  email: { x: 72, y: 472, w: 268, h: 52 },
+};
+
+function useLayout(rtl: boolean, compact: boolean) {
   return useMemo(() => {
-    const nodes = NODES.map((n) => ({ ...n, x: rtl ? W - n.x - n.w : n.x }));
+    const width = compact ? CW : W;
+    const height = compact ? CH : H;
+    const nodes = NODES.map((n) => {
+      const box = compact ? { ...n, ...COMPACT[n.id] } : n;
+      return { ...box, x: rtl ? width - box.x - box.w : box.x };
+    });
     const byId = Object.fromEntries(nodes.map((n) => [n.id, n])) as Record<
       NodeId,
       (typeof nodes)[number]
     >;
     const out = rtl ? -1 : 1; // which horizontal side is "output"
 
-    const edges = EDGES.map((e) => {
+    // Flow-edge endpoints double as the little port blocks drawn on the nodes.
+    type Pt = { x: number; y: number };
+    const edgeOf = (e: EdgeDef): { d: string; ports: Pt[] } => {
       const a = byId[e.from];
       const b = byId[e.to];
-      let d: string;
+      if (compact) {
+        const start = (n: typeof a) => (rtl ? n.x + n.w : n.x); // reading-start edge
+        const end = (n: typeof a) => (rtl ? n.x : n.x + n.w);
+        const cx = (n: typeof a) => n.x + n.w / 2;
+        if (e.kind === "sub") {
+          // Agent's end side → sub-node's start side.
+          const order = ["model", "memory", "tools"].indexOf(e.to);
+          const x1 = end(a);
+          const y1 = a.y + a.h / 2 + (order - 1) * 20;
+          const x2 = start(b);
+          const y2 = b.y + b.h / 2;
+          const dx = (x2 - x1) / 2;
+          return { d: `M${x1} ${y1} C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`, ports: [] };
+        }
+        if (e.from === "router") {
+          // Tree branch: down from the router's start third, then into the output's start side.
+          const x1 = a.x + a.w / 2 + 50 * (rtl ? 1 : -1);
+          const y1 = a.y + a.h;
+          const x2 = start(b);
+          const y2 = b.y + b.h / 2;
+          const r = 14 * (rtl ? -1 : 1);
+          return {
+            d: `M${x1} ${y1} L${x1} ${y2 - 14} Q${x1} ${y2} ${x1 + r} ${y2} L${x2} ${y2}`,
+            ports: [
+              { x: x1, y: y1 },
+              { x: x2, y: y2 },
+            ],
+          };
+        }
+        // Straight down the main column.
+        const x1 = cx(a);
+        const y1 = a.y + a.h;
+        const x2 = cx(b);
+        const y2 = b.y;
+        const dy = (y2 - y1) / 2;
+        return {
+          d: `M${x1} ${y1} C${x1} ${y1 + dy} ${x2} ${y2 - dy} ${x2} ${y2}`,
+          ports: [
+            { x: x1, y: y1 },
+            { x: x2, y: y2 },
+          ],
+        };
+      }
       if (e.kind === "sub") {
         // Agent bottom ports → sub-node tops (n8n-style dashed sub-connections).
         const order = ["model", "memory", "tools"].indexOf(e.to);
@@ -85,19 +152,36 @@ function useLayout(rtl: boolean) {
         const x2 = b.x + b.w / 2;
         const y2 = b.y;
         const dy = (y2 - y1) / 2;
-        d = `M${x1} ${y1} C${x1} ${y1 + dy} ${x2} ${y2 - dy} ${x2} ${y2}`;
-      } else {
-        const x1 = out > 0 ? a.x + a.w : a.x;
-        const y1 = a.y + a.h / 2;
-        const x2 = out > 0 ? b.x : b.x + b.w;
-        const y2 = b.y + b.h / 2;
-        const dx = (x2 - x1) / 2;
-        d = `M${x1} ${y1} C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`;
+        return { d: `M${x1} ${y1} C${x1} ${y1 + dy} ${x2} ${y2 - dy} ${x2} ${y2}`, ports: [] };
       }
-      return { ...e, d, step: Math.max(a.step, b.step) };
+      const x1 = out > 0 ? a.x + a.w : a.x;
+      const y1 = a.y + a.h / 2;
+      const x2 = out > 0 ? b.x : b.x + b.w;
+      const y2 = b.y + b.h / 2;
+      const dx = (x2 - x1) / 2;
+      return {
+        d: `M${x1} ${y1} C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`,
+        ports: [
+          { x: x1, y: y1 },
+          { x: x2, y: y2 },
+        ],
+      };
+    };
+
+    const ports = new Map<NodeId, Pt[]>();
+    const addPort = (id: NodeId, pt: Pt) => {
+      const list = ports.get(id) ?? [];
+      if (!list.some((q) => q.x === pt.x && q.y === pt.y)) list.push(pt);
+      ports.set(id, list);
+    };
+    const edges = EDGES.map((e) => {
+      const { d, ports: [from, to] = [] } = edgeOf(e);
+      if (from) addPort(e.from, from);
+      if (to) addPort(e.to, to);
+      return { ...e, d, step: Math.max(byId[e.from].step, byId[e.to].step) };
     });
-    return { nodes, edges, byId };
-  }, [rtl]);
+    return { nodes, edges, ports, width, height };
+  }, [rtl, compact]);
 }
 
 /* ------------------------------------------------------------------ component */
@@ -107,14 +191,16 @@ type Props = { highlight: NodeId[] | null; onHover: (ids: NodeId[] | null) => vo
 /**
  * n8n-inspired workflow canvas (SVG + GSAP, no canvas libs).
  * Desktop: pinned, nodes and connections build step by step with scroll; once complete,
- * glowing data packets loop along the wires. Mobile: plays once on enter inside a
- * swipeable frame. Reduced motion: complete, static diagram. Mirrors in RTL.
+ * glowing data packets loop along the wires. Tablet/phone: the full diagram is shown at once
+ * and only the packets loop while it is on screen; phones get a narrow top-to-bottom layout
+ * that fits the screen. Reduced motion: complete, static diagram. Mirrors in RTL.
  */
 export function AiWorkflowCanvas({ highlight, onHover }: Props) {
   const t = useTranslations("home.aiNodes");
   const { isRTL } = useDirection();
   const reduced = usePrefersReducedMotion();
-  const { nodes, edges } = useLayout(isRTL);
+  const compact = useMedia("(max-width: 767px)");
+  const { nodes, edges, ports, width, height } = useLayout(isRTL, compact);
   const root = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<NodeId | null>(null);
 
@@ -192,13 +278,13 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
             onUpdate: (self) => (self.progress > 0.97 ? packets.play() : packets.pause()),
           });
         } else {
-          const tl = build(gsap.timeline({ paused: true }));
-          tl.timeScale(1.6).eventCallback("onComplete", () => packets.play());
+          // Phones: the diagram is always fully drawn (no hidden build-up state that can
+          // get stuck half-way); only the data packets animate while it is on screen.
           ScrollTrigger.create({
             trigger: root.current,
-            start: "top 75%",
-            once: true,
-            onEnter: () => tl.play(),
+            start: "top bottom",
+            end: "bottom top",
+            onToggle: (self) => (self.isActive ? packets.play() : packets.pause()),
           });
         }
       });
@@ -212,20 +298,28 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
       });
       return () => mm.revert();
     },
-    { scope: root, dependencies: [reduced, isRTL], revertOnUpdate: true },
+    { scope: root, dependencies: [reduced, isRTL, compact], revertOnUpdate: true },
   );
 
   const tipNode = tip ? nodes.find((n) => n.id === tip) : null;
+  const show = (id: NodeId) => {
+    setTip(id);
+    onHover([id]);
+  };
+  const hide = () => {
+    setTip(null);
+    onHover(null);
+  };
 
   return (
     <div ref={root} className="relative">
       <div
-        className="-mx-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0"
-        data-lenis-prevent
+        className={cn(!compact && "-mx-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0")}
+        data-lenis-prevent={compact ? undefined : true}
       >
-        <div className="relative min-w-[760px] lg:min-w-0">
+        <div className={cn("relative", !compact && "min-w-[760px] lg:min-w-0")}>
           <svg
-            viewBox={`0 0 ${W} ${H}`}
+            viewBox={`0 0 ${width} ${height}`}
             className="block h-auto w-full overflow-visible"
             role="group"
             aria-label="n8n AI agent workflow"
@@ -255,7 +349,8 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
                     stroke={e.kind === "sub" ? "var(--color-blue-300)" : "var(--color-blue-400)"}
                     strokeWidth={e.kind === "sub" ? 1.5 : 2.5}
                     strokeDasharray={e.kind === "sub" ? "4 5" : undefined}
-                    className="drop-shadow-[0_0_6px_var(--color-blue-400)]"
+                    // SVG filters repaint every frame while packets move — too heavy for phones.
+                    className="lg:drop-shadow-[0_0_6px_var(--color-blue-400)]"
                   />
                   <rect
                     data-packet={e.id}
@@ -267,7 +362,7 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
                     fill={
                       e.id === "e-router-reply" ? "var(--color-yellow-500)" : "var(--color-white)"
                     }
-                    className="drop-shadow-[0_0_8px_var(--color-blue-400)]"
+                    className="lg:drop-shadow-[0_0_8px_var(--color-blue-400)]"
                   />
                 </g>
               );
@@ -278,10 +373,12 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
               const Icon = n.icon;
               const on = isOn(n.id);
               const big = n.id === "agent";
-              const iconSize = n.kind === "sub" ? 30 : big ? 44 : 38;
-              const pad = n.kind === "sub" ? 12 : 14;
+              const sub = n.kind === "sub";
+              const iconSize = sub ? (compact ? 24 : 30) : big ? 44 : 38;
+              const pad = sub ? (compact ? 8 : 12) : compact ? 12 : 14;
+              const gap = sub && compact ? 8 : 12;
               const iconX = isRTL ? n.x + n.w - pad - iconSize : n.x + pad;
-              const textX = isRTL ? iconX - 12 : iconX + iconSize + 12;
+              const textX = isRTL ? iconX - gap : iconX + iconSize + gap;
               return (
                 <g
                   key={n.id}
@@ -289,22 +386,12 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
                   tabIndex={0}
                   role="img"
                   aria-label={`${t(`${n.id}.label`)} — ${t(`${n.id}.desc`)}`}
-                  onMouseEnter={() => {
-                    setTip(n.id);
-                    onHover([n.id]);
-                  }}
-                  onMouseLeave={() => {
-                    setTip(null);
-                    onHover(null);
-                  }}
-                  onFocus={() => {
-                    setTip(n.id);
-                    onHover([n.id]);
-                  }}
-                  onBlur={() => {
-                    setTip(null);
-                    onHover(null);
-                  }}
+                  // Mouse hovers; touch taps toggle (a tap's emulated hover would otherwise stick).
+                  onPointerEnter={(e) => e.pointerType === "mouse" && show(n.id)}
+                  onPointerLeave={(e) => e.pointerType === "mouse" && hide()}
+                  onClick={() => (tip === n.id ? hide() : show(n.id))}
+                  onFocus={(e) => e.currentTarget.matches(":focus-visible") && show(n.id)}
+                  onBlur={hide}
                   className={cn(
                     "cursor-pointer transition-opacity duration-300 outline-none [&:focus-visible>rect:first-of-type]:stroke-yellow-500",
                     on ? "opacity-100" : "opacity-30",
@@ -347,7 +434,7 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
                     fill="var(--color-white)"
                     style={{
                       fontFamily: "var(--font-body)",
-                      fontSize: n.kind === "sub" ? 13 : big ? 17 : 15,
+                      fontSize: sub ? (compact ? 12 : 13) : big ? 17 : 15,
                       fontWeight: 500,
                     }}
                   >
@@ -365,25 +452,17 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
                       {"{ tools: 3 }"}
                     </text>
                   )}
-                  {/* ports — little blocks */}
-                  {n.kind === "main" && n.id !== "trigger" && (
+                  {/* ports — little blocks where the flow wires meet the node */}
+                  {ports.get(n.id)?.map((pt) => (
                     <rect
-                      x={(isRTL ? n.x + n.w : n.x) - 4}
-                      y={n.y + n.h / 2 - 4}
+                      key={`${pt.x}-${pt.y}`}
+                      x={pt.x - 4}
+                      y={pt.y - 4}
                       width={8}
                       height={8}
                       fill="var(--color-blue-400)"
                     />
-                  )}
-                  {n.kind === "main" && !["crm", "reply", "email"].includes(n.id) && (
-                    <rect
-                      x={(isRTL ? n.x : n.x + n.w) - 4}
-                      y={n.y + n.h / 2 - 4}
-                      width={8}
-                      height={8}
-                      fill="var(--color-blue-400)"
-                    />
-                  )}
+                  ))}
                 </g>
               );
             })}
@@ -396,8 +475,9 @@ export function AiWorkflowCanvas({ highlight, onHover }: Props) {
               className="pointer-events-none absolute z-10 w-56 -translate-x-1/2 -translate-y-full border border-blue-400/40 bg-navy-950/95 px-3 py-2 text-sm text-indigo-200 shadow-[0_12px_40px_-12px_var(--color-blue-600)] backdrop-blur"
               // Physical left: SVG coordinates are physical in both directions.
               style={{
-                left: `${((tipNode.x + tipNode.w / 2) / W) * 100}%`,
-                top: `calc(${(tipNode.y / H) * 100}% - 10px)`,
+                // Phones: keep the 14rem tooltip inside the narrow frame.
+                left: `${Math.min(Math.max(((tipNode.x + tipNode.w / 2) / width) * 100, compact ? 34 : 0), compact ? 66 : 100)}%`,
+                top: `calc(${(tipNode.y / height) * 100}% - 10px)`,
               }}
             >
               <p className="font-medium text-white">{t(`${tipNode.id}.label`)}</p>

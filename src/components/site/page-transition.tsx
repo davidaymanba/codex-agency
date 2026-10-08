@@ -29,7 +29,10 @@ export function PageTransition({ children }: { children: ReactNode }) {
     const measure = () => {
       const cols = window.innerWidth < 768 ? 6 : 12;
       const size = window.innerWidth / cols;
-      setGrid({ cols, rows: Math.ceil(window.innerHeight / size) });
+      const rows = Math.ceil(window.innerHeight / size);
+      // Phones fire `resize` whenever the browser bar slides in/out while scrolling —
+      // only re-render the block grid when it actually changes.
+      setGrid((g) => (g.cols === cols && g.rows === rows ? g : { cols, rows }));
     };
     measure();
     window.addEventListener("resize", measure);

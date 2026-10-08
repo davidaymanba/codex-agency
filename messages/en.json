@@ -75,6 +75,7 @@
     "aiTitle": "Agents that work while your team sleeps.",
     "aiIntro": "We design AI agents and n8n workflows that answer customers, qualify leads and move data between your tools — reliably, around the clock, in Arabic and English.",
     "aiHint": "Hover a node — or pick a use case — to trace the flow.",
+    "aiHintTouch": "Tap a node — or pick a use case — to trace the flow.",
     "aiCta": "Explore AI & Automation",
     "aiStat": "workflows running in production",
     "aiNodes": {

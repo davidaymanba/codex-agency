@@ -80,12 +80,17 @@ export function Marquee({
     { scope: ref, dependencies: [reduced, sign, reverse, duration], revertOnUpdate: true },
   );
 
+  // Reduced motion: one static row the user can swipe (wrapping turned two rows into a
+  // screen-tall column on phones).
   if (reduced) {
     return (
-      <div className={cn("overflow-hidden", className)}>
-        <div className={cn("flex flex-wrap items-center justify-center", trackClassName)}>
-          {children}
-        </div>
+      <div
+        className={cn(
+          "overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          className,
+        )}
+      >
+        <div className={cn("flex w-max items-center", trackClassName)}>{children}</div>
       </div>
     );
   }

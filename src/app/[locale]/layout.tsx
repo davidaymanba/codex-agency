@@ -12,11 +12,12 @@ import { getSettings } from "@/lib/data/content";
 import "../globals.css";
 
 /**
- * `html.js` gates initial animation states; `html.preload` shows the first-visit preloader.
+ * `html.js` gates initial animation states; `html.preload` shows the first-visit preloader
+ * (desktop only — on phones it would only delay the first paint).
  * If hydration hasn't happened within 4s (JS error, blocked bundle), both classes are
  * removed so all content becomes visible.
  */
-const JS_FLAG = `(function(d){var h=d.documentElement;h.classList.add('js');try{if(!/^\\/(en|ar)\\/(dashboard|login|forgot-password|reset-password|accept-invite)(\\/|$)/.test(location.pathname)&&!sessionStorage.getItem('codex-preloaded')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)h.classList.add('preload')}catch(e){}setTimeout(function(){if(!window.__codexHydrated)h.classList.remove('js','preload')},4000)})(document);`;
+const JS_FLAG = `(function(d){var h=d.documentElement;h.classList.add('js');try{if(!/^\\/(en|ar)\\/(dashboard|login|forgot-password|reset-password|accept-invite)(\\/|$)/.test(location.pathname)&&!sessionStorage.getItem('codex-preloaded')&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&matchMedia('(hover: hover) and (pointer: fine) and (min-width: 768px)').matches)h.classList.add('preload')}catch(e){}setTimeout(function(){if(!window.__codexHydrated)h.classList.remove('js','preload')},4000)})(document);`;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));

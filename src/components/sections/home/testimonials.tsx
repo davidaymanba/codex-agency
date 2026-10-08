@@ -1,51 +1,51 @@
 "use client";
 
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { animate, motion, useMotionValue } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { BracketGlyph } from "@/components/brand/logo";
 import type { TestimonialVM } from "@/lib/data/content";
 import { useDirection } from "@/hooks/use-direction";
 import { usePrefersReducedMotion } from "@/hooks/use-media";
 
 /**
- * Draggable testimonial track with prev/next buttons. Quote marks are the brand brackets.
- * Drag bounds and button direction mirror in RTL (the track overflows to the left there).
+ * Testimonial track on native horizontal scroll (scroll-snap): touch swipes are handled by
+ * the browser, mouse users can drag, and prev/next buttons scroll by one card.
+ * Quote marks are the brand brackets. Native scrolling mirrors in RTL on its own.
  */
 export function Testimonials({ items }: { items: TestimonialVM[] }) {
   const t = useTranslations("home");
   const { isRTL, sign } = useDirection();
   const reduced = usePrefersReducedMotion();
-  const viewport = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLUListElement>(null);
-  const x = useMotionValue(0);
-  const [overflow, setOverflow] = useState(0);
-
-  useEffect(() => {
-    const measure = () => {
-      if (!viewport.current || !track.current) return;
-      setOverflow(Math.max(0, track.current.scrollWidth - viewport.current.clientWidth));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (viewport.current) ro.observe(viewport.current);
-    return () => ro.disconnect();
-  }, [items.length]);
-
-  const constraints = isRTL ? { left: 0, right: overflow } : { left: -overflow, right: 0 };
 
   const step = (dir: 1 | -1) => {
-    const card = track.current?.firstElementChild as HTMLElement | null;
+    const el = track.current;
+    const card = el?.firstElementChild as HTMLElement | null;
+    if (!el) return;
     const amount = (card?.offsetWidth ?? 400) + 24;
-    // "Next" moves content toward the reading start.
-    const target = x.get() - dir * sign * amount;
-    const clamped = Math.min(constraints.right, Math.max(constraints.left, target));
-    animate(
-      x,
-      clamped,
-      reduced ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 32 },
-    );
+    // "Next" moves toward the reading end (negative scrollLeft in RTL).
+    el.scrollBy({ left: dir * sign * amount, behavior: reduced ? "auto" : "smooth" });
+  };
+
+  // Mouse drag-to-scroll (touch and pen keep the browser's native panning).
+  const onPointerDown = (e: React.PointerEvent<HTMLUListElement>) => {
+    const el = track.current;
+    if (!el || e.pointerType !== "mouse" || e.button !== 0) return;
+    const startX = e.clientX;
+    const start = el.scrollLeft;
+    el.setPointerCapture(e.pointerId);
+    el.style.scrollSnapType = "none";
+    const move = (ev: PointerEvent) => {
+      el.scrollLeft = start - (ev.clientX - startX);
+    };
+    const up = () => {
+      el.removeEventListener("pointermove", move);
+      el.style.scrollSnapType = "";
+    };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up, { once: true });
+    el.addEventListener("pointercancel", up, { once: true });
   };
 
   const Prev = isRTL ? ArrowRight : ArrowLeft;
@@ -53,51 +53,47 @@ export function Testimonials({ items }: { items: TestimonialVM[] }) {
 
   return (
     <div>
-      <div ref={viewport} className="overflow-hidden" data-cursor="drag">
-        <motion.ul
-          ref={track}
-          drag={overflow > 0 ? "x" : false}
-          dragConstraints={constraints}
-          dragElastic={0.12}
-          style={{ x }}
-          className="flex w-max cursor-grab gap-6 active:cursor-grabbing"
-          aria-label={t("testimonialsDrag")}
-        >
-          {items.map((item) => (
-            <li
-              key={item.id}
-              className="flex w-[min(85vw,28rem)] flex-col rounded-[var(--radius-brand)] border border-border bg-surface p-7 select-none md:p-9"
-            >
-              <span aria-hidden dir="ltr" className="flex gap-4 text-[2rem] leading-none text-link">
-                <BracketGlyph side="left" />
-                <BracketGlyph side="right" />
+      <ul
+        ref={track}
+        onPointerDown={onPointerDown}
+        data-cursor="drag"
+        className="flex cursor-grab snap-x snap-mandatory gap-6 overflow-x-auto overscroll-x-contain [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
+        aria-label={t("testimonialsDrag")}
+      >
+        {items.map((item) => (
+          <li
+            key={item.id}
+            className="flex w-[min(85vw,28rem)] shrink-0 snap-start flex-col rounded-[var(--radius-brand)] border border-border bg-surface p-7 select-none md:p-9"
+          >
+            <span aria-hidden dir="ltr" className="flex gap-4 text-[2rem] leading-none text-link">
+              <BracketGlyph side="left" />
+              <BracketGlyph side="right" />
+            </span>
+            <blockquote className="mt-6 flex-1 text-lead">
+              <p>{item.quote}</p>
+            </blockquote>
+            <footer className="mt-8 flex items-center gap-4 border-t border-border pt-6">
+              <span
+                aria-hidden
+                className="grid size-11 shrink-0 place-items-center bg-primary font-medium text-white"
+              >
+                {item.name
+                  .split(" ")
+                  .map((w) => w[0])
+                  .slice(0, 2)
+                  .join("")}
               </span>
-              <blockquote className="mt-6 flex-1 text-lead">
-                <p>{item.quote}</p>
-              </blockquote>
-              <footer className="mt-8 flex items-center gap-4 border-t border-border pt-6">
-                <span
-                  aria-hidden
-                  className="grid size-11 shrink-0 place-items-center bg-primary font-medium text-white"
-                >
-                  {item.name
-                    .split(" ")
-                    .map((w) => w[0])
-                    .slice(0, 2)
-                    .join("")}
+              <span className="min-w-0">
+                <span className="block font-medium">{item.name}</span>
+                <span className="block truncate text-sm text-fg-muted">
+                  {item.role}, {item.company}
                 </span>
-                <span className="min-w-0">
-                  <span className="block font-medium">{item.name}</span>
-                  <span className="block truncate text-sm text-fg-muted">
-                    {item.role}, {item.company}
-                  </span>
-                </span>
-                <span className="ms-auto label-mono text-fg-muted">{item.country}</span>
-              </footer>
-            </li>
-          ))}
-        </motion.ul>
-      </div>
+              </span>
+              <span className="ms-auto label-mono text-fg-muted">{item.country}</span>
+            </footer>
+          </li>
+        ))}
+      </ul>
       <div className="mt-8 flex items-center gap-2">
         <button
           type="button"

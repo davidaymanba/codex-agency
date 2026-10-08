@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/routing";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Suspense } from "react";
 import { SmoothScrollProvider } from "@/components/providers/smooth-scroll";
 import { Cursor } from "@/components/site/cursor";
 import { Footer } from "@/components/site/footer";
@@ -62,11 +63,16 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
             <main id="main" tabIndex={-1} className="outline-none">
               {children}
             </main>
-            <Footer />
-            <WhatsAppButton />
-            <Cursor />
-            <Preloader />
-            <PageTracker />
+            {/* Separate hydration units, so the page content becomes interactive first. */}
+            <Suspense>
+              <Footer />
+            </Suspense>
+            <Suspense>
+              <WhatsAppButton />
+              <Cursor />
+              <Preloader />
+              <PageTracker />
+            </Suspense>
           </PageTransition>
         </div>
       </SmoothScrollProvider>

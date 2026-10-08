@@ -24,3 +24,9 @@ export const STAGGER = {
 
 /** Default ScrollTrigger start for entrance animations. */
 export const REVEAL_START = "top 85%";
+/**
+ * Same line as REVEAL_START, as an IntersectionObserver rootMargin (see `onInView`).
+ * The top is extended far up so "reached" also covers blocks already scrolled past:
+ * a jump (anchor link, scroll restore) that skips over a block still reveals it.
+ */
+export const REVEAL_MARGIN = "100000px 0px -15% 0px";

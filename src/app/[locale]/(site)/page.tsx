@@ -1,4 +1,5 @@
 import { setRequestLocale } from "next-intl/server";
+import { Suspense } from "react";
 import { AiAutomation } from "@/components/sections/home/ai-automation";
 import { Hero } from "@/components/sections/home/hero";
 import {
@@ -40,18 +41,38 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       getTestimonials(locale),
     ]);
 
+  // Each section is its own Suspense boundary: React hydrates them as separate small tasks
+  // (yielding in between) instead of one long main-thread block — big TBT win on phones.
   return (
     <>
       <Hero />
-      <TechMarquee rows={logos} />
-      <Services items={services} />
-      <Solutions items={solutions} />
-      <AiAutomation />
-      <Stats items={stats} />
-      <WorkSection projects={projects} categories={categories} />
-      <TeamsSection teams={teams} />
-      <ProcessSection />
-      <TestimonialsSection items={testimonials} />
+      <Suspense>
+        <TechMarquee rows={logos} />
+      </Suspense>
+      <Suspense>
+        <Services items={services} />
+      </Suspense>
+      <Suspense>
+        <Solutions items={solutions} />
+      </Suspense>
+      <Suspense>
+        <AiAutomation />
+      </Suspense>
+      <Suspense>
+        <Stats items={stats} />
+      </Suspense>
+      <Suspense>
+        <WorkSection projects={projects} categories={categories} />
+      </Suspense>
+      <Suspense>
+        <TeamsSection teams={teams} />
+      </Suspense>
+      <Suspense>
+        <ProcessSection />
+      </Suspense>
+      <Suspense>
+        <TestimonialsSection items={testimonials} />
+      </Suspense>
     </>
   );
 }

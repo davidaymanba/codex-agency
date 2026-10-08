@@ -32,10 +32,21 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
   const tl = useRef<gsap.core.Timeline | null>(null);
   const opener = useRef<Element | null>(null);
 
-  useGSAP(
+  // The timeline is built on first open, not at mount: building it sets 60 blocks + items
+  // (style reads/writes) and cost ~200ms of main thread during page load on phones.
+  const { context } = useGSAP(
     () => {
-      const blocks = gsap.utils.toArray<HTMLElement>("[data-block]");
-      const items = gsap.utils.toArray<HTMLElement>("[data-item]");
+      tl.current = null;
+    },
+    { scope: root, dependencies: [reduced], revertOnUpdate: true },
+  );
+
+  // Called from effects only; `context.add` keeps it revertible with the useGSAP context.
+  const build = () => {
+    if (tl.current) return tl.current;
+    context.add(() => {
+      const blocks = gsap.utils.toArray<HTMLElement>("[data-block]", root.current);
+      const items = gsap.utils.toArray<HTMLElement>("[data-item]", root.current);
       tl.current = gsap
         .timeline({ paused: true })
         // visibility:hidden while closed keeps the dialog out of the a11y tree and tab order.
@@ -66,16 +77,17 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
           },
           "-=0.15",
         );
-    },
-    { scope: root, dependencies: [reduced], revertOnUpdate: true },
-  );
+    });
+    return tl.current!;
+  };
 
   useEffect(() => {
     if (open) {
       opener.current = document.activeElement;
       lock();
+      const timeline = build();
       gsap.set(root.current, { visibility: "visible" }); // so focus can move in immediately
-      tl.current?.timeScale(1).play();
+      timeline.timeScale(1).play();
       requestAnimationFrame(() =>
         root.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus(),
       );

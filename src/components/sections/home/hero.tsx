@@ -34,8 +34,13 @@ export function Hero() {
       const fades = el.querySelectorAll<HTMLElement>("[data-hero-fade]");
       const tl = gsap.timeline({ paused: true, defaults: { ease: "expo.out" } });
       // Hero content is NEVER hidden (it is the LCP): intros move/blur/scramble visible text.
+      // Phones/tablets: SplitText/scramble swap the headline's nodes after hydration, which
+      // re-paints the LCP seconds late — there the headline only moves (transform, same node).
+      const rich = window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 768px)").matches;
       if (!reduced) {
-        if (locale === "ar") {
+        if (!rich) {
+          tl.from(title, { y: 24, duration: 1 }, 0);
+        } else if (locale === "ar") {
           // Arabic: line-level blur-to-sharp (no glyph splitting, no masking).
           const split = SplitText.create(title, { type: "lines", aria: "auto" });
           tl.from(split.lines, { y: 28, filter: "blur(10px)", duration: 1.1, stagger: 0.12 }, 0);

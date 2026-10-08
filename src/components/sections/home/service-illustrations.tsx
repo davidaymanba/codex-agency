@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { LOGO_PARTS } from "@/components/brand/logo";
 import { gsap, useGSAP } from "@/lib/animation/gsap";
+import { onInView } from "@/lib/animation/in-view";
 import { usePrefersReducedMotion } from "@/hooks/use-media";
 import { cn } from "@/lib/utils";
 
@@ -17,23 +18,34 @@ function useLoop(build: (tl: gsap.core.Timeline, el: HTMLElement) => void) {
   const ref = useRef<HTMLDivElement>(null);
   const reduced = usePrefersReducedMotion();
   useGSAP(
-    () => {
-      if (reduced || !ref.current) return;
-      const tl = gsap.timeline({
-        repeat: -1,
-        repeatDelay: 1.6,
-        paused: true,
-        defaults: { ease: "expo.out" },
+    (_, contextSafe) => {
+      const el = ref.current;
+      if (reduced || !el) return;
+      // Built lazily (just below the fold) so page load doesn't pay for every illustration;
+      // plays while between "top 80%" and "bottom top", like the old ScrollTrigger toggle.
+      let tl: gsap.core.Timeline | null = null;
+      const ensure = contextSafe!(() => {
+        if (!tl) {
+          tl = gsap.timeline({
+            repeat: -1,
+            repeatDelay: 1.6,
+            paused: true,
+            defaults: { ease: "expo.out" },
+          });
+          build(tl, el);
+        }
+        return tl;
       });
-      build(tl, ref.current);
-      gsap.timeline({
-        scrollTrigger: {
-          trigger: ref.current,
-          start: "top 80%",
-          end: "bottom top",
-          onToggle: (self) => (self.isActive ? tl.play() : tl.pause()),
-        },
-      });
+      const stopBuild = onInView(el, (e) => e.isIntersecting && ensure(), "0px 0px 25% 0px");
+      const stopPlay = onInView(
+        el,
+        (e) => (e.isIntersecting ? ensure().play() : tl?.pause()),
+        "0px 0px -20% 0px",
+      );
+      return () => {
+        stopBuild();
+        stopPlay();
+      };
     },
     { scope: ref, dependencies: [reduced], revertOnUpdate: true },
   );

@@ -2,7 +2,8 @@
 
 import { useRef, type ElementType, type ReactNode } from "react";
 import { gsap, useGSAP } from "@/lib/animation/gsap";
-import { DURATION, EASE, REVEAL_START, STAGGER } from "@/lib/animation/constants";
+import { DURATION, EASE, REVEAL_MARGIN, STAGGER } from "@/lib/animation/constants";
+import { onInView } from "@/lib/animation/in-view";
 import { usePrefersReducedMotion } from "@/hooks/use-media";
 
 type RevealProps = {
@@ -30,23 +31,38 @@ export function Reveal({
   const reduced = usePrefersReducedMotion();
 
   useGSAP(
-    () => {
+    (_, contextSafe) => {
       const el = ref.current;
       if (!el) return;
-      const targets = stagger ? Array.from(el.children) : el;
-      gsap.set(el, { opacity: 1 });
       const mount = trigger === "mount";
-      gsap.from(targets, {
-        // Above-the-fold (mount) content stays painted for LCP: motion only, no fade from 0.
-        opacity: mount ? 1 : 0,
-        y: reduced ? 0 : y,
-        duration: reduced ? DURATION.fast : DURATION.reveal,
-        ease: EASE.out,
-        delay,
-        stagger: stagger ? (typeof stagger === "number" ? stagger : STAGGER.items) : 0,
-        scrollTrigger:
-          trigger === "scroll" ? { trigger: el, start: REVEAL_START, once: true } : undefined,
+      const play = contextSafe!(() => {
+        const targets = stagger ? Array.from(el.children) : el;
+        gsap.set(el, { opacity: 1 });
+        gsap.from(targets, {
+          // Above-the-fold (mount) content stays painted for LCP: motion only, no fade from 0.
+          opacity: mount ? 1 : 0,
+          y: reduced ? 0 : y,
+          duration: reduced ? DURATION.fast : DURATION.reveal,
+          ease: EASE.out,
+          delay,
+          stagger: stagger ? (typeof stagger === "number" ? stagger : STAGGER.items) : 0,
+        });
       });
+      if (mount) {
+        play();
+        return;
+      }
+      // Scroll reveals: the tween is only created when the block reaches REVEAL_START.
+      const stop = onInView(
+        el,
+        (entry) => {
+          if (!entry.isIntersecting) return;
+          stop();
+          play();
+        },
+        REVEAL_MARGIN,
+      );
+      return stop;
     },
     { scope: ref, dependencies: [reduced], revertOnUpdate: true },
   );

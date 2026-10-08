@@ -29,6 +29,9 @@ const nextConfig = {
     remotePatterns: supabaseImages(),
   },
   poweredByHeader: false,
+  // Tailwind CSS is small: inlining it removes the render-blocking stylesheet request
+  // (biggest first-paint win on mobile networks).
+  experimental: { inlineCss: true },
   async headers() {
     const security = [
       { key: "X-Content-Type-Options", value: "nosniff" },

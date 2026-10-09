@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { Logo } from "@/components/brand/logo";
 import { WhatsAppIcon } from "@/components/brand/social-icons";
 import { useSmoothScroll } from "@/components/providers/smooth-scroll";
-import { mainNav, whatsappHref } from "@/config/site";
+import { formatWhatsapp, mainNav, whatsappHref } from "@/config/site";
 import { useSiteContact } from "./site-settings";
 import { Link, usePathname } from "@/i18n/navigation";
 import { gsap, useGSAP } from "@/lib/animation/gsap";
@@ -199,15 +199,19 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
             <a href={`mailto:${contact.email}`} className="hover:text-link">
               {contact.email}
             </a>
-            <a
-              href={whatsappHref(contact.whatsapp)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 hover:text-link"
-            >
-              <WhatsAppIcon className="size-4" />
-              {tf("whatsapp")}
-            </a>
+            {contact.whatsapps.map((n) => (
+              <a
+                key={n}
+                href={whatsappHref(n)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${tf("whatsapp")} ${formatWhatsapp(n)}`}
+                className="inline-flex items-center gap-2 hover:text-link"
+              >
+                <WhatsAppIcon className="size-4" />
+                <span dir="ltr">{formatWhatsapp(n)}</span>
+              </a>
+            ))}
           </div>
           <div data-item className="flex items-center gap-1">
             <LocaleSwitch />

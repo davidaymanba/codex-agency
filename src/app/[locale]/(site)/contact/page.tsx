@@ -5,7 +5,7 @@ import { WhatsAppIcon } from "@/components/brand/social-icons";
 import { Reveal } from "@/components/motion/reveal";
 import { ContactForm } from "@/components/sections/pages/contact-form";
 import { PageHero } from "@/components/sections/pages/page-hero";
-import { whatsappHref } from "@/config/site";
+import { formatWhatsapp, telHref, whatsappHref } from "@/config/site";
 import { getSettings } from "@/lib/data/content";
 import type { Locale } from "@/i18n/routing";
 import { pageMetadata } from "@/lib/seo";
@@ -24,14 +24,15 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
   const t = await getTranslations("pages.contact");
   const settings = await getSettings(locale);
 
+  // One card per number (WhatsApp and phone can each list several).
   const channels = [
-    {
+    ...settings.whatsapps.map((n) => ({
       icon: WhatsAppIcon,
       label: t("whatsappLabel"),
-      value: `+${settings.whatsapp}`,
-      href: whatsappHref(settings.whatsapp),
+      value: formatWhatsapp(n),
+      href: whatsappHref(n),
       ltr: true,
-    },
+    })),
     {
       icon: Mail,
       label: t("emailLabel"),
@@ -39,13 +40,13 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
       href: `mailto:${settings.email}`,
       ltr: true,
     },
-    {
+    ...settings.phones.map((n) => ({
       icon: Phone,
       label: t("phoneLabel"),
-      value: settings.phone,
-      href: `tel:${settings.phone.replace(/\s/g, "")}`,
+      value: n,
+      href: telHref(n),
       ltr: true,
-    },
+    })),
     { icon: Clock, label: t("hoursLabel"), value: t("hours"), href: null, ltr: false },
   ];
 
@@ -79,7 +80,7 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
             );
             return href ? (
               <a
-                key={label}
+                key={href ?? label}
                 href={href}
                 target={href.startsWith("http") ? "_blank" : undefined}
                 rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
@@ -89,7 +90,7 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
               </a>
             ) : (
               <div
-                key={label}
+                key={href ?? label}
                 className="group flex items-center gap-4 rounded-[var(--radius-brand)] border border-border bg-surface p-4"
               >
                 {inner}

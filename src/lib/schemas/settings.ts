@@ -1,5 +1,11 @@
 import { z } from "zod";
+import { splitNumbers } from "@/config/site";
 import { loc } from "./content";
+
+const numbersOk = (list: string, re: RegExp) => {
+  const all = splitNumbers(list);
+  return all.length >= 1 && all.length <= 4 && all.every((n) => re.test(n));
+};
 
 const optUrl = z
   .string()
@@ -10,14 +16,15 @@ const optUrl = z
 /** Site settings form (errors are keys under `dash.form.errors`). */
 export const settingsSchema = z.object({
   email: z.email("invalid").max(120),
+  // Both accept 1–4 comma-separated numbers (all are shown on the site).
   phone: z
     .string()
-    .trim()
-    .regex(/^\+?[0-9\s\-()]{7,20}$/, "invalid"),
+    .transform((v) => splitNumbers(v).join(", "))
+    .refine((v) => numbersOk(v, /^\+?[0-9\s\-()]{7,20}$/), "invalid"),
   whatsapp: z
     .string()
-    .trim()
-    .regex(/^[0-9]{8,15}$/, "invalid"),
+    .transform((v) => splitNumbers(v).join(","))
+    .refine((v) => numbersOk(v, /^[0-9]{8,15}$/), "invalid"),
   address: loc(1, 120),
   socials: z.object({
     instagram: optUrl,

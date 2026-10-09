@@ -70,7 +70,12 @@ export function SettingsForm({ initial }: { initial: SettingsInput }) {
           <Section title={t("settings.contact")}>
             <div className="grid gap-4 md:grid-cols-3">
               <TextField name="email" type="email" label={t("settings.email")} dir="ltr" />
-              <TextField name="phone" label={t("settings.phone")} dir="ltr" />
+              <TextField
+                name="phone"
+                label={t("settings.phone")}
+                dir="ltr"
+                hint={t("settings.phoneHint")}
+              />
               <TextField
                 name="whatsapp"
                 label={t("settings.whatsapp")}

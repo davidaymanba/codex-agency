@@ -1,13 +1,13 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import { siteConfig } from "@/config/site";
+import { siteConfig, splitNumbers } from "@/config/site";
 
-type Contact = { email: string; phone: string; whatsapp: string };
+type Contact = { email: string; phones: string[]; whatsapps: string[] };
 const Ctx = createContext<Contact>({
   email: siteConfig.email,
-  phone: siteConfig.phone,
-  whatsapp: siteConfig.whatsapp,
+  phones: splitNumbers(siteConfig.phone),
+  whatsapps: splitNumbers(siteConfig.whatsapp),
 });
 
 /** Contact details from site settings, for client components (WhatsApp button, mobile menu). */

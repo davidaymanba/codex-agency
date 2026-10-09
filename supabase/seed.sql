@@ -99,7 +99,7 @@ insert into public.tech_logos (name, icon, marquee_row, sort_order, published) v
   ('Figma', 'siFigma', 2, 10, true);
 
 insert into public.site_settings (id, email, phone, whatsapp, address_en, address_ar, socials, seo_title_en, seo_title_ar, seo_description_en, seo_description_ar, announcement_en, announcement_ar, announcement_href)
-values (1, 'hello@codex.agency', '+20 100 000 0000', '201000000000', 'Riyadh · Cairo · Dubai', 'الرياض · القاهرة · دبي',
+values (1, 'info@codexai.systems', '+20 120 780 9980, +20 102 902 0716', '201207809980,201029020716', 'Riyadh · Cairo · Dubai', 'الرياض · القاهرة · دبي',
   '{"instagram":"https://instagram.com/","linkedin":"https://linkedin.com/","behance":"https://behance.net/","x":"https://x.com/","tiktok":"https://tiktok.com/"}',
   'CODEX — Software, Branding & Marketing Agency', 'CODEX — وكالة برمجيات وهوية تجارية وتسويق',
   'CODEX is a digital agency with in-house development, brand and marketing teams.', 'CODEX وكالة رقمية بفرق داخلية للبرمجة والهوية والتسويق.',

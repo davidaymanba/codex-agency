@@ -47,7 +47,8 @@
     "tagline": "Brands, code and growth — from one team."
   },
   "whatsapp": {
-    "label": "Chat with CODEX on WhatsApp"
+    "label": "Chat with CODEX on WhatsApp",
+    "choose": "Choose a number"
   },
   "home": {
     "heroTitle": "We build brands, code, and growth.",
@@ -777,7 +778,8 @@
       "email": "Email",
       "phone": "Phone",
       "whatsapp": "WhatsApp number",
-      "whatsappHint": "Digits only, with country code (e.g. 9665XXXXXXXX).",
+      "whatsappHint": "Digits only, with country code (e.g. 201XXXXXXXXX). Separate several numbers with commas.",
+      "phoneHint": "Separate several numbers with commas.",
       "address": "Locations line",
       "socials": "Social links",
       "seo": "Default SEO",

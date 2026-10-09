@@ -13,13 +13,14 @@ import { BlockReveal } from "@/components/motion/block-reveal";
 import { BracketFrame } from "@/components/motion/bracket-frame";
 import { Reveal } from "@/components/motion/reveal";
 import { RevealText } from "@/components/motion/reveal-text";
-import { ButtonLink, MagneticButton } from "@/components/ui/button";
+import { MagneticButton } from "@/components/ui/button";
 import { CodeLabel } from "@/components/ui/code-label";
-import { mainNav, whatsappHref } from "@/config/site";
+import { formatWhatsapp, mainNav, telHref, whatsappHref } from "@/config/site";
 import type { Locale } from "@/i18n/routing";
 import { getSettings } from "@/lib/data/content";
 import { Link } from "@/i18n/navigation";
 import { BackToTop } from "./back-to-top";
+import { WhatsAppCta } from "./whatsapp-picker";
 
 const socials = [
   { key: "instagram", label: "Instagram", Icon: InstagramIcon },
@@ -61,14 +62,7 @@ export async function Footer() {
             <MagneticButton href="/contact" size="lg" cursor="open">
               {t("ctaButton")}
             </MagneticButton>
-            <ButtonLink
-              href={whatsappHref(settings.whatsapp)}
-              variant="secondary"
-              size="lg"
-              icon={<WhatsAppIcon className="size-5" />}
-            >
-              {t("whatsapp")}
-            </ButtonLink>
+            <WhatsAppCta>{t("whatsapp")}</WhatsAppCta>
           </div>
         </Reveal>
       </section>
@@ -105,25 +99,26 @@ export async function Footer() {
                 {settings.email}
               </a>
             </li>
-            <li>
-              <a
-                href={`tel:${settings.phone.replace(/\s/g, "")}`}
-                dir="ltr"
-                className="hover:text-link"
-              >
-                {settings.phone}
-              </a>
-            </li>
-            <li>
-              <a
-                href={whatsappHref(settings.whatsapp)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-link"
-              >
-                WhatsApp
-              </a>
-            </li>
+            {settings.phones.map((n) => (
+              <li key={n}>
+                <a href={telHref(n)} dir="ltr" className="hover:text-link">
+                  {n}
+                </a>
+              </li>
+            ))}
+            {settings.whatsapps.map((n) => (
+              <li key={n}>
+                <a
+                  href={whatsappHref(n)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 hover:text-link"
+                >
+                  <WhatsAppIcon className="size-4 shrink-0" />
+                  <span dir="ltr">{formatWhatsapp(n)}</span>
+                </a>
+              </li>
+            ))}
           </FooterCol>
 
           <FooterCol title={t("follow")} className="lg:col-span-2">

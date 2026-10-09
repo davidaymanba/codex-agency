@@ -14,6 +14,7 @@ import type {
   TechLogoRow,
   TestimonialRow,
 } from "@/content/types";
+import { siteConfig, splitNumbers } from "@/config/site";
 import type { Locale } from "@/i18n/routing";
 import type { SiteSettings } from "@/lib/dashboard/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -385,8 +386,10 @@ export async function getTeamMembers(locale: Locale): Promise<TeamMemberVM[]> {
 
 export type PublicSettings = {
   email: string;
-  phone: string;
-  whatsapp: string;
+  /** Display-formatted phone numbers (one or more). */
+  phones: string[];
+  /** WhatsApp numbers, digits only (one or more). */
+  whatsapps: string[];
   address: string;
   socials: Record<"instagram" | "linkedin" | "behance" | "x" | "tiktok", string>;
   seoTitle: string;
@@ -398,9 +401,9 @@ export type PublicSettings = {
 export async function getSettings(locale: Locale): Promise<PublicSettings> {
   const s = (await db.settings()) ?? FALLBACK_SETTINGS;
   return {
-    email: s.email,
-    phone: s.phone,
-    whatsapp: s.whatsapp,
+    email: s.email || siteConfig.email,
+    phones: splitNumbers(s.phone || siteConfig.phone),
+    whatsapps: splitNumbers(s.whatsapp || siteConfig.whatsapp),
     address: pick(s, "address", locale),
     socials: s.socials,
     seoTitle: pick(s, "seo_title", locale),

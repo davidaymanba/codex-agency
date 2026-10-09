@@ -32,7 +32,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
 
   return (
     <SiteSettingsProvider
-      value={{ email: settings.email, phone: settings.phone, whatsapp: settings.whatsapp }}
+      value={{ email: settings.email, phones: settings.phones, whatsapps: settings.whatsapps }}
     >
       <SmoothScrollProvider>
         <script
@@ -44,7 +44,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
             url: siteConfig.url,
             logo: `${siteConfig.url}/brand/logo.svg`,
             email: settings.email,
-            telephone: settings.phone,
+            telephone: settings.phones,
             areaServed: siteConfig.markets,
             sameAs: Object.values(settings.socials).filter(Boolean),
           })}

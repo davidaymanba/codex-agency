@@ -29,6 +29,8 @@ const nextConfig = {
     remotePatterns: supabaseImages(),
   },
   poweredByHeader: false,
+  // Caps the CDN's stale-while-revalidate window (default is one year) → s-maxage=300, swr=3300.
+  expireTime: 3600,
   // Tailwind CSS is small: inlining it removes the render-blocking stylesheet request
   // (biggest first-paint win on mobile networks).
   experimental: { inlineCss: true },

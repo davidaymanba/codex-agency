@@ -16,6 +16,10 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getSettings } from "@/lib/data/content";
 import { jsonLd } from "@/lib/seo";
 
+// Hostinger's CDN ignores on-demand revalidatePath(); a short ISR window gives it
+// `s-maxage=300` instead of one year, so dashboard edits reach visitors within ~5 min.
+export const revalidate = 300;
+
 /**
  * Public-site chrome. Contact details, announcement and maintenance mode come from
  * site settings (editable in the dashboard). The dashboard has its own layout.

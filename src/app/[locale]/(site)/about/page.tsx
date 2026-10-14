@@ -5,10 +5,10 @@ import { Reveal } from "@/components/motion/reveal";
 import { ProcessSection, TeamsSection } from "@/components/sections/home/home-sections";
 import { Stats } from "@/components/sections/home/stats";
 import { PageHero } from "@/components/sections/pages/page-hero";
+import { TeamCarousel } from "@/components/sections/pages/team-carousel";
 import { SectionHeading } from "@/components/ui/section-heading";
 import type { Locale } from "@/i18n/routing";
 import { getStats, getTeamMembers, getTeams } from "@/lib/data/content";
-import { Avatar } from "@/components/dashboard/ui/primitives";
 import { pageMetadata } from "@/lib/seo";
 
 const VALUES = ["clarity", "craft", "ownership", "speed"] as const;
@@ -77,26 +77,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
           <h2 id="people-title" className="mb-8 label-mono text-fg-muted">
             {t("peopleTitle")}
           </h2>
-          <Reveal as="ul" stagger className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-            {members.map((m) => (
-              <li key={m.id} className="group">
-                <div className="relative aspect-square overflow-hidden rounded-[var(--radius-brand)] bg-surface-2">
-                  {m.photo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={m.photo}
-                      alt=""
-                      className="size-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                  ) : (
-                    <Avatar name={m.name} className="size-full text-headline" />
-                  )}
-                </div>
-                <p className="mt-3 font-medium">{m.name}</p>
-                <p className="text-sm text-fg-muted">{m.role}</p>
-              </li>
-            ))}
-          </Reveal>
+          <TeamCarousel members={members} />
         </section>
       )}
 

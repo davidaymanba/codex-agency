@@ -300,7 +300,9 @@
         }
       },
       "marketsTitle": "Where we work",
-      "peopleTitle": "The people"
+      "peopleTitle": "The people",
+      "peoplePrev": "Previous team member",
+      "peopleNext": "Next team member"
     },
     "contact": {
       "label": "Contact",

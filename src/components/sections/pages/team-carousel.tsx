@@ -1,20 +1,34 @@
 "use client";
 
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { Reveal } from "@/components/motion/reveal";
 import { Avatar } from "@/components/dashboard/ui/primitives";
+import { useDirection } from "@/hooks/use-direction";
+import { usePrefersReducedMotion } from "@/hooks/use-media";
 
 type Member = { id: string; name: string; role: string; photo: string | null };
+
+const AUTOPLAY_MS = 3500;
+/** Autoplay waits this long after the visitor last touched the row or an arrow. */
+const IDLE_MS = 6000;
 
 /**
  * Team grid on md+, endless swipe row on mobile. The list is rendered three times
  * (originals first so the desktop stagger is unaffected; copies are md:hidden + aria-hidden).
- * The row starts on the middle copy, and whenever scrolling settles on the first or last
- * copy it jumps by one set width to the identical card — so after the last card comes the
- * first again, in both directions. Rect deltas keep the jump correct in RTL too.
+ * The row sits on the middle copy, and whenever scrolling settles on the first or last copy
+ * it jumps by one set width to the identical card — so after the last card comes the first
+ * again (and before the first, the last). Rect deltas keep every jump correct in RTL.
+ * Autoplay advances one card at a time while the row is on screen and the visitor is idle.
  */
 export function TeamCarousel({ members }: { members: Member[] }) {
+  const t = useTranslations("pages.about");
+  const { isRTL } = useDirection();
+  const reduced = usePrefersReducedMotion();
   const wrap = useRef<HTMLDivElement>(null);
+  const stepRef = useRef<(dir: 1 | -1) => void>(() => {});
+  const lastInput = useRef(0);
   const n = members.length;
   const loop = n > 1;
 
@@ -22,6 +36,7 @@ export function TeamCarousel({ members }: { members: Member[] }) {
     const ul = wrap.current?.firstElementChild as HTMLElement | null;
     if (!ul || !loop) return;
     const cards = () => Array.from(ul.children) as HTMLElement[];
+    const scrollable = () => ul.scrollWidth > ul.clientWidth;
     const centred = () => {
       const r = ul.getBoundingClientRect();
       const mid = r.left + r.width / 2;
@@ -34,37 +49,86 @@ export function TeamCarousel({ members }: { members: Member[] }) {
       });
       return best;
     };
-    const jump = (from: number, to: number) => {
+    /** Physical distance from card `from` to card `to` (negative = towards the left). */
+    const delta = (from: number, to: number) => {
       const c = cards();
+      return c[to].getBoundingClientRect().left - c[from].getBoundingClientRect().left;
+    };
+    const jump = (from: number, to: number) => {
       ul.style.scrollBehavior = "auto";
-      ul.scrollLeft += c[to].getBoundingClientRect().left - c[from].getBoundingClientRect().left;
+      ul.scrollLeft += delta(from, to);
       ul.style.scrollBehavior = "";
     };
-
-    // Only the mobile row scrolls; on md+ the copies are hidden and nothing overflows.
-    if (ul.scrollWidth <= ul.clientWidth) return;
-    jump(centred(), n);
-
     const settle = () => {
+      if (!scrollable()) return;
       const i = centred();
       if (i < n) jump(i, i + n);
       else if (i >= 2 * n) jump(i, i - n);
     };
+    stepRef.current = (dir) => {
+      if (!scrollable()) return;
+      settle();
+      const i = centred();
+      ul.scrollBy({ left: delta(i, i + dir), behavior: reduced ? "auto" : "smooth" });
+    };
+
+    // (Re)centre on the middle copy whenever the row becomes scrollable — e.g. the page was
+    // opened wide and then narrowed to phone width, or the device was rotated.
+    let wasScrollable = false;
+    const sync = () => {
+      const now = scrollable();
+      if (now && !wasScrollable) jump(centred(), n);
+      wasScrollable = now;
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(ul);
+
     let timer: ReturnType<typeof setTimeout>;
     const onScroll = () => {
       clearTimeout(timer);
       timer = setTimeout(settle, 140); // fallback for browsers without `scrollend`
     };
+    const touched = () => (lastInput.current = Date.now());
     ul.addEventListener("scrollend", settle);
     ul.addEventListener("scroll", onScroll, { passive: true });
+    ul.addEventListener("pointerdown", touched, { passive: true });
+    ul.addEventListener("touchstart", touched, { passive: true });
+    ul.addEventListener("wheel", touched, { passive: true });
+
+    // Autoplay: only while the row is visible, the tab is active and nobody is interacting.
+    let visible = false;
+    const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting), { threshold: 0.5 });
+    io.observe(ul);
+    const auto = reduced
+      ? undefined
+      : setInterval(() => {
+          if (visible && !document.hidden && Date.now() - lastInput.current > IDLE_MS) stepRef.current(1);
+        }, AUTOPLAY_MS);
+
     return () => {
       clearTimeout(timer);
+      clearInterval(auto);
+      ro.disconnect();
+      io.disconnect();
       ul.removeEventListener("scrollend", settle);
       ul.removeEventListener("scroll", onScroll);
+      ul.removeEventListener("pointerdown", touched);
+      ul.removeEventListener("touchstart", touched);
+      ul.removeEventListener("wheel", touched);
     };
-  }, [n, loop]);
+  }, [n, loop, reduced]);
+
+  const press = (dir: 1 | -1) => {
+    lastInput.current = Date.now();
+    stepRef.current(dir);
+  };
 
   const sets = loop ? [0, 1, 2] : [0];
+  const Prev = isRTL ? ArrowRight : ArrowLeft;
+  const Next = isRTL ? ArrowLeft : ArrowRight;
+  const arrow =
+    "grid size-12 place-items-center border border-border transition-colors hover:border-primary hover:bg-primary hover:text-white";
 
   return (
     <div ref={wrap}>
@@ -88,7 +152,6 @@ export function TeamCarousel({ members }: { members: Member[] }) {
                   <img
                     src={m.photo}
                     alt=""
-                    loading={set > 0 ? "lazy" : undefined}
                     // Portrait team photos: keep heads in frame when cropping.
                     className="size-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
                   />
@@ -102,6 +165,16 @@ export function TeamCarousel({ members }: { members: Member[] }) {
           )),
         )}
       </Reveal>
+      {loop && (
+        <div className="mt-6 flex justify-center gap-2 md:hidden">
+          <button type="button" onClick={() => press(-1)} aria-label={t("peoplePrev")} className={arrow}>
+            <Prev aria-hidden className="size-5" />
+          </button>
+          <button type="button" onClick={() => press(1)} aria-label={t("peopleNext")} className={arrow}>
+            <Next aria-hidden className="size-5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -300,7 +300,9 @@
         }
       },
       "marketsTitle": "أين نعمل",
-      "peopleTitle": "الفريق"
+      "peopleTitle": "الفريق",
+      "peoplePrev": "عضو الفريق السابق",
+      "peopleNext": "عضو الفريق التالي"
     },
     "contact": {
       "label": "تواصل معنا",

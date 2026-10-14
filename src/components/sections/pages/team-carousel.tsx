@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { Reveal } from "@/components/motion/reveal";
@@ -148,12 +149,14 @@ export function TeamCarousel({ members }: { members: Member[] }) {
             >
               <div className="relative aspect-[3/4] overflow-hidden rounded-[var(--radius-brand)] bg-surface-2">
                 {m.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  // next/image serves AVIF/WebP at the displayed size (uploads are multi-MB originals).
+                  <Image
                     src={m.photo}
                     alt=""
+                    fill
+                    sizes="(min-width: 1024px) 16vw, (min-width: 768px) 33vw, 67vw"
                     // Portrait team photos: keep heads in frame when cropping.
-                    className="size-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                    className="object-cover object-top transition-transform duration-700 group-hover:scale-105"
                   />
                 ) : (
                   <Avatar name={m.name} className="size-full text-headline" />

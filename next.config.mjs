@@ -27,6 +27,8 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
     // Public images from Supabase Storage (local CLI + hosted project).
     remotePatterns: supabaseImages(),
+    // Local Supabase is 127.0.0.1, which the optimizer blocks (SSRF guard). Dev only.
+    dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
   },
   poweredByHeader: false,
   // Caps the CDN's stale-while-revalidate window (default is one year) → s-maxage=300, swr=3300.
